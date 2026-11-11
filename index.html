@@ -1,0 +1,2680 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" id="themeColor" content="#e2e9e3">
+<meta name="description" content="A gongfu cha brewing timer for successive tea infusions.">
+<title>Gongfu Cha Timer</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23fafbf7' stroke='%233b6b5b' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='10' fill='%23b5803c'/%3E%3C/svg%3E">
+<style>
+/* =====================================================================
+   Design tokens
+   Light theme: celadon glaze. Dark theme: tenmoku (Jian ware) glaze.
+   ===================================================================== */
+:root {
+  --bg: #e2e9e3;
+  --surface: #f5f7f2;
+  --surface-2: #e9eee8;
+  --ink: #1c2621;
+  --ink-soft: #4a5851;
+  --line: #c0ccc3;
+  --accent: #3b6b5b;
+  --on-accent: #f7faf6;
+  --primary: #6a3a2e;
+  --primary-hover: #562e24;
+  --on-primary: #fcf7f2;
+  --danger: #9a2b21;
+  --track: #d2dcd4;
+  --focus: #1f4f42;
+  --cup-surface: #fafbf7;
+  --cup-rim: #ffffff;
+  --cup-edge: #cfd9d1;
+  --cup-shadow: 0 22px 44px -26px rgba(28, 38, 33, 0.55), 0 2px 6px -2px rgba(28, 38, 33, 0.18);
+  --backdrop: rgba(22, 30, 26, 0.48);
+
+  --font-ui: "Avenir Next", Avenir, "Segoe UI Variable Text", "Segoe UI", "Helvetica Neue", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif;
+  --font-tea: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", "URW Palladio L", "Noto Serif", Georgia, serif;
+  --font-cjk: "Songti SC", STSong, "Noto Serif CJK SC", "Source Han Serif SC", SimSun, serif;
+  --font-digits: "Avenir Next", "Segoe UI Variable Display", "Segoe UI", "Helvetica Neue", system-ui, -apple-system, Roboto, sans-serif;
+
+  --radius-panel: 18px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15110e;
+    --surface: #201a16;
+    --surface-2: #2a231d;
+    --ink: #eee5d8;
+    --ink-soft: #bcae9d;
+    --line: #40362e;
+    --accent: #d6b27b;
+    --on-accent: #1b140f;
+    --primary: #d6b27b;
+    --primary-hover: #e3c393;
+    --on-primary: #1b140f;
+    --danger: #f09080;
+    --track: #3a3029;
+    --focus: #f3d29f;
+    --cup-surface: #251e19;
+    --cup-rim: #2f2620;
+    --cup-edge: #4a3d33;
+    --cup-shadow: 0 22px 44px -24px rgba(0, 0, 0, 0.8), 0 2px 6px -2px rgba(0, 0, 0, 0.5);
+    --backdrop: rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15110e;
+  --surface: #201a16;
+  --surface-2: #2a231d;
+  --ink: #eee5d8;
+  --ink-soft: #bcae9d;
+  --line: #40362e;
+  --accent: #d6b27b;
+  --on-accent: #1b140f;
+  --primary: #d6b27b;
+  --primary-hover: #e3c393;
+  --on-primary: #1b140f;
+  --danger: #f09080;
+  --track: #3a3029;
+  --focus: #f3d29f;
+  --cup-surface: #251e19;
+  --cup-rim: #2f2620;
+  --cup-edge: #4a3d33;
+  --cup-shadow: 0 22px 44px -24px rgba(0, 0, 0, 0.8), 0 2px 6px -2px rgba(0, 0, 0, 0.5);
+  --backdrop: rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+/* =====================================================================
+   Base
+   ===================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 16px/1.5 var(--font-ui);
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  -webkit-tap-highlight-color: transparent;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+h1, h2, h3, p { margin: 0; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.visually-hidden {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+.hanzi { font-family: var(--font-cjk); letter-spacing: 0.04em; }
+
+/* =====================================================================
+   Layout
+   ===================================================================== */
+.app {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 10px 16px 40px;
+  display: grid;
+  gap: 28px;
+}
+.brew-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.detail-col { display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+
+@media (min-width: 880px) {
+  .app {
+    grid-template-columns: minmax(360px, 420px) minmax(0, 1fr);
+    column-gap: 56px;
+    padding: 32px 32px 64px;
+    align-items: start;
+  }
+  .brew-col { position: sticky; top: 24px; }
+  .detail-col { padding-top: 8px; }
+}
+
+/* =====================================================================
+   Tea header
+   ===================================================================== */
+.tea-head { display: flex; align-items: center; gap: 8px; }
+.tea-button {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 6px 10px 6px 6px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.tea-button:hover { background: var(--surface-2); border-color: var(--line); }
+.tea-button .chev { width: 18px; height: 18px; color: var(--ink-soft); }
+.tea-button-text { min-width: 0; display: flex; flex-direction: column; }
+.tea-name {
+  font-family: var(--font-tea);
+  font-size: 1.375rem;
+  line-height: 1.2;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.tea-sub { display: flex; flex-wrap: wrap; gap: 0 0.7em; font-size: 0.875rem; color: var(--ink-soft); }
+.swatch {
+  --liquor: #b5803c;
+  width: 38px; height: 38px; flex: none;
+  border-radius: 50%;
+  background: var(--liquor);
+  box-shadow: inset 0 0 0 4px var(--cup-rim), 0 0 0 1px var(--cup-edge);
+}
+.tea-temp { flex: none; text-align: right; padding-right: 4px; line-height: 1.15; }
+.tea-temp strong { display: block; font-size: 1.375rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.tea-temp span { font-size: 0.8125rem; color: var(--ink-soft); }
+
+/* =====================================================================
+   Timer
+   ===================================================================== */
+.brew { display: flex; flex-direction: column; gap: 10px; }
+.stage-line { display: flex; justify-content: center; align-items: baseline; gap: 0.4em; font-size: 1.0625rem; }
+.stage-line strong { font-weight: 600; }
+.stage-of { color: var(--ink-soft); }
+
+.cup-wrap { display: flex; justify-content: center; padding: 2px 0 4px; }
+.cup {
+  --size: clamp(196px, min(74vw, calc(100vh - 336px)), 340px);
+  --liquor: #b5803c;
+  --cup-text: var(--ink);
+  position: relative;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  box-shadow: var(--cup-shadow);
+}
+@supports (height: 100svh) {
+  .cup { --size: clamp(196px, min(74vw, calc(100svh - 336px)), 340px); }
+}
+@media (min-width: 880px) {
+  .cup { --size: clamp(240px, calc(100vh - 340px), 360px); }
+  @supports (height: 100svh) { .cup { --size: clamp(240px, calc(100svh - 340px), 360px); } }
+}
+.cup-svg { display: block; width: 100%; height: 100%; }
+.cup-rim { fill: var(--cup-rim); stroke: var(--cup-edge); stroke-width: 1; }
+.cup-track { fill: none; stroke: var(--track); stroke-width: 6; }
+.cup-arc {
+  fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round;
+  stroke-dasharray: 100 100; stroke-dashoffset: 100;
+}
+.cup-arc.is-empty { opacity: 0; }
+.cup-well { fill: var(--cup-surface); stroke: var(--cup-edge); stroke-width: 1; }
+.cup-liquor { fill: var(--liquor); fill-opacity: 0.06; }
+.cup-sheen { fill: #ffffff; opacity: 0.1; }
+
+.cup-face {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: calc(var(--size) * 0.035);
+  color: var(--cup-text);
+  pointer-events: none;
+}
+.clock {
+  font-family: var(--font-digits);
+  font-weight: 300;
+  font-size: calc(var(--size) * 0.215);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  transition: opacity 0.2s;
+}
+.cup[data-state="paused"] .clock { opacity: 0.68; }
+.state-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 11px 3px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font-size: 0.875rem; font-weight: 500;
+}
+.state-icon { display: inline-flex; }
+.state-icon svg { width: 14px; height: 14px; }
+.cup[data-state="done"] .state-badge,
+.cup[data-state="finished"] .state-badge { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+
+.ripple {
+  position: absolute; inset: 7%;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  opacity: 0;
+  pointer-events: none;
+}
+.ripple.is-playing { animation: ripple 1.6s cubic-bezier(0.15, 0.6, 0.3, 1) 1 both; }
+@keyframes ripple {
+  from { transform: scale(0.8); opacity: 0.75; }
+  to { transform: scale(1.2); opacity: 0; }
+}
+
+.targets { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; }
+.targets > div { text-align: center; }
+.targets dt { font-size: 0.8125rem; color: var(--ink-soft); }
+.targets dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; font-size: 1.0625rem; }
+.adjust-tag {
+  display: inline-block; margin-left: 4px; padding: 0 7px;
+  border-radius: 999px; border: 1px dashed var(--ink-soft);
+  font-size: 0.75rem; font-weight: 500; vertical-align: 2px;
+}
+
+/* =====================================================================
+   Buttons
+   ===================================================================== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 48px; min-width: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.1s;
+}
+.btn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--ink-soft); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.42; cursor: not-allowed; }
+.btn .icon { display: inline-flex; }
+.btn .icon svg { width: 20px; height: 20px; }
+.btn-primary, .btn-solid {
+  background: var(--primary); color: var(--on-primary); border-color: transparent;
+}
+.btn-primary:hover:not(:disabled), .btn-solid:hover:not(:disabled) { background: var(--primary-hover); border-color: transparent; }
+.btn-primary { min-height: 64px; font-size: 1.1875rem; font-weight: 600; padding: 0 12px; }
+.btn-step { min-height: 64px; padding: 0 8px; font-variant-numeric: tabular-nums; }
+.btn-small { min-height: 44px; padding: 0 16px; font-size: 0.9375rem; }
+.btn-danger { color: var(--danger); }
+.btn-solid.btn-danger { background: var(--danger); color: var(--surface); }
+
+.controls { display: flex; flex-direction: column; gap: 10px; margin-top: 2px; }
+.controls-main { display: grid; grid-template-columns: 1fr 2.3fr 1fr; gap: 10px; }
+.controls-sub { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.notice {
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 0.9375rem;
+  text-align: center;
+}
+.notice[data-tone="done"] { border-color: var(--accent); }
+.notice[data-tone="warn"] { border-color: var(--danger); }
+.shortcuts { font-size: 0.8125rem; color: var(--ink-soft); text-align: center; }
+@media (hover: none), (pointer: coarse) { .shortcuts { display: none; } }
+
+/* =====================================================================
+   Detail column: plan, panels, log
+   ===================================================================== */
+.section-title { font-family: var(--font-tea); font-size: 1.25rem; font-weight: 600; line-height: 1.25; }
+.section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; margin-bottom: 12px; }
+.section-head.center { align-items: center; }
+.plan-formula { font-size: 0.875rem; color: var(--ink-soft); }
+
+.plan-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.plan-step {
+  position: relative;
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.plan-step .n { font-size: 0.6875rem; color: var(--ink-soft); }
+.plan-step .d { font-size: 0.875rem; font-weight: 600; }
+.plan-step.is-current { border: 2px solid var(--accent); }
+.plan-step.is-recorded { background: var(--surface-2); }
+.plan-step.is-recorded .d { color: var(--ink-soft); font-weight: 500; }
+.plan-mark {
+  position: absolute; top: -3px; right: -3px;
+  width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--accent); color: var(--on-accent);
+  font-size: 0.6875rem; font-weight: 700;
+}
+.plan-mark svg { width: 12px; height: 12px; }
+.plan-mark.is-early { background: var(--surface); color: var(--ink); border: 1px solid var(--ink-soft); }
+.plan-mark.is-skipped { background: var(--surface); color: var(--ink-soft); border: 1px dashed var(--ink-soft); }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-panel); }
+.panel > summary {
+  list-style: none;
+  display: flex; align-items: center; gap: 12px;
+  min-height: 56px;
+  padding: 0 18px;
+  cursor: pointer;
+  font-family: var(--font-tea); font-size: 1.125rem; font-weight: 600;
+  border-radius: inherit;
+}
+.panel > summary::-webkit-details-marker { display: none; }
+.panel > summary .summary-text { flex: 1 1 auto; }
+.panel > summary::after {
+  content: "";
+  width: 9px; height: 9px; flex: none;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: translateY(-3px) rotate(45deg);
+  transition: transform 0.2s;
+}
+.panel[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
+.panel-body { padding: 2px 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+.tag {
+  display: inline-block;
+  font-family: var(--font-ui); font-size: 0.75rem; font-weight: 500;
+  padding: 1px 9px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--ink-soft);
+  white-space: nowrap;
+}
+.tag-accent { border-color: var(--accent); color: var(--ink); }
+
+.tea-about { font-size: 0.9375rem; }
+.tea-about .range { display: block; color: var(--ink-soft); font-size: 0.875rem; margin-top: 4px; }
+.hint { font-size: 0.875rem; color: var(--ink-soft); }
+
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field.wide { grid-column: 1 / -1; }
+.field > label { font-size: 0.875rem; font-weight: 500; color: var(--ink-soft); }
+.input {
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--cup-surface);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+.input:disabled { opacity: 0.5; }
+.input[aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+textarea.input { resize: vertical; min-height: 88px; line-height: 1.45; }
+.field-error { font-size: 0.8125rem; color: var(--danger); }
+@media (max-width: 359px) { .fields { grid-template-columns: 1fr; } }
+
+.switch-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  min-height: 48px;
+  cursor: pointer;
+}
+.switch-row > span { display: flex; flex-direction: column; }
+.switch-row small { font-size: 0.8125rem; color: var(--ink-soft); }
+.field .switch-row { font-size: 0.9375rem; font-weight: 500; }
+.switch {
+  appearance: none; -webkit-appearance: none;
+  position: relative; flex: none;
+  width: 48px; height: 30px; margin: 0;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--track);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.switch::before {
+  content: "";
+  position: absolute; top: 3px; left: 3px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s;
+}
+.switch:checked { background: var(--accent); border-color: transparent; }
+.switch:checked::before { transform: translateX(18px); }
+.switch:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.profile-status { font-size: 0.875rem; color: var(--ink-soft); }
+.form-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.feedback { font-size: 0.875rem; min-height: 1.3em; }
+
+.log .table-wrap { overflow-x: auto; }
+.log-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.log-table th, .log-table td { padding: 10px 8px; text-align: left; border-bottom: 1px solid var(--line); }
+.log-table thead th { font-size: 0.8125rem; font-weight: 500; color: var(--ink-soft); padding-top: 4px; }
+.log-table tfoot th, .log-table tfoot td { border-bottom: none; font-weight: 600; }
+.log-table .muted { color: var(--ink-soft); font-weight: 400; font-size: 0.875rem; }
+.result { display: inline-flex; align-items: center; gap: 6px; }
+.result svg { width: 14px; height: 14px; }
+.empty { color: var(--ink-soft); font-size: 0.9375rem; padding: 4px 0 8px; }
+
+.prefs { gap: 6px; }
+.prefs .btn-small { align-self: flex-start; margin-bottom: 6px; }
+.segmented { border: 0; margin: 8px 0 0; padding: 0; }
+.segmented legend { padding: 0; margin-bottom: 8px; font-weight: 500; }
+.segmented-options { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); }
+.segmented label { position: relative; }
+.segmented input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.segmented span {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 40px; min-width: 64px; padding: 0 14px;
+  border-radius: 999px; cursor: pointer; font-size: 0.9375rem;
+}
+.segmented input:checked + span { background: var(--surface); box-shadow: 0 0 0 1px var(--line); font-weight: 600; }
+.segmented input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 1px; }
+.prefs-foot { margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+
+/* =====================================================================
+   Dialogs
+   ===================================================================== */
+dialog {
+  border: none; padding: 0;
+  background: transparent; color: var(--ink);
+  width: calc(100% - 24px); max-width: 560px;
+  max-height: min(86vh, 780px);
+  overflow: visible;
+}
+dialog::backdrop { background: var(--backdrop); }
+.sheet {
+  background: var(--surface);
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  padding: 18px;
+  display: flex; flex-direction: column; gap: 12px;
+  max-height: min(86vh, 780px);
+}
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.icon-btn {
+  width: 44px; height: 44px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 50%; border: 1px solid transparent; background: transparent; cursor: pointer;
+}
+.icon-btn:hover { background: var(--surface-2); border-color: var(--line); }
+.icon-btn svg { width: 18px; height: 18px; }
+.tea-lists { overflow-y: auto; overscroll-behavior: contain; min-height: 0; flex: 1 1 auto; margin: 0 -8px; padding: 0 8px; }
+.list-title { font-size: 0.875rem; font-weight: 600; color: var(--ink-soft); margin: 10px 0 4px; }
+.tea-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.tea-option {
+  width: 100%;
+  display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px;
+  align-items: start;
+  padding: 12px 10px;
+  border-radius: 14px; border: 1px solid transparent;
+  background: transparent; text-align: left; cursor: pointer;
+  touch-action: manipulation;
+}
+.tea-option:hover { background: var(--surface-2); }
+.tea-option[aria-current="true"] { border-color: var(--accent); background: var(--surface-2); }
+.tea-option .swatch { width: 40px; height: 40px; }
+.opt-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.opt-name-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+.opt-name { font-family: var(--font-tea); font-size: 1.125rem; font-weight: 600; overflow-wrap: anywhere; }
+.opt-aka { font-size: 0.8125rem; color: var(--ink-soft); }
+.opt-desc { font-size: 0.875rem; color: var(--ink-soft); }
+.opt-stats { display: flex; flex-wrap: wrap; gap: 2px 16px; font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+.dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.confirm-dialog { max-width: 440px; }
+
+@media (max-width: 600px) {
+  dialog.sheet-dialog { width: 100%; max-width: 100%; margin: auto 0 0; }
+  dialog.sheet-dialog .sheet {
+    border-radius: 22px 22px 0 0; border-bottom: none;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* =====================================================================
+   Reduced motion
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+  .ripple { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ============ Brewing column: tea, timer, controls ============ -->
+  <div class="brew-col">
+    <header class="tea-head">
+      <h1 class="visually-hidden">Gongfu cha brewing timer</h1>
+      <button type="button" class="tea-button" id="teaButton" aria-haspopup="dialog" aria-controls="teaDialog">
+        <span class="swatch" id="teaSwatch" aria-hidden="true"></span>
+        <span class="tea-button-text">
+          <span class="visually-hidden">Change tea. Current tea:</span>
+          <span class="tea-name" id="teaName">Tea</span>
+          <span class="tea-sub" id="teaSub"></span>
+        </span>
+        <svg class="chev" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <p class="tea-temp"><strong id="teaTemp">95°C</strong><span>water</span></p>
+    </header>
+
+    <section class="brew" aria-label="Timer">
+      <p class="stage-line" id="stageLine"></p>
+
+      <div class="cup-wrap">
+        <div class="cup" id="cup" data-state="idle">
+          <svg class="cup-svg" viewBox="0 0 200 200" aria-hidden="true" focusable="false">
+            <circle class="cup-rim" cx="100" cy="100" r="99"></circle>
+            <circle class="cup-track" cx="100" cy="100" r="92"></circle>
+            <circle class="cup-arc is-empty" id="cupArc" cx="100" cy="100" r="92" pathLength="100" transform="rotate(-90 100 100)"></circle>
+            <circle class="cup-well" cx="100" cy="100" r="84"></circle>
+            <circle class="cup-liquor" id="cupLiquor" cx="100" cy="100" r="80"></circle>
+            <ellipse class="cup-sheen" id="cupSheen" cx="76" cy="70" rx="30" ry="12" transform="rotate(-34 76 70)"></ellipse>
+          </svg>
+          <div class="cup-face">
+            <div class="clock" id="clock" role="timer" aria-atomic="true">00:00</div>
+            <div class="state-badge"><span class="state-icon" id="stateIcon" aria-hidden="true"></span><span id="stateText">Ready</span></div>
+          </div>
+          <span class="ripple" id="ripple" aria-hidden="true"></span>
+        </div>
+      </div>
+      <progress class="visually-hidden" id="a11yProgress" max="100" value="0" aria-label="Progress of the current infusion"></progress>
+
+      <dl class="targets">
+        <div>
+          <dt>Target</dt>
+          <dd><span id="targetNow">0s</span><span class="adjust-tag" id="adjustTag" hidden></span></dd>
+        </div>
+        <div>
+          <dt id="targetNextLabel">Next infusion</dt>
+          <dd id="targetNext">0s</dd>
+        </div>
+      </dl>
+
+      <div class="controls">
+        <div class="controls-main">
+          <button type="button" class="btn btn-step" id="minusBtn" aria-label="Shorten this infusion by 5 seconds" aria-keyshortcuts="-">−5s</button>
+          <button type="button" class="btn btn-primary" id="primaryBtn" aria-keyshortcuts="Space"><span class="icon" id="primaryIcon" aria-hidden="true"></span><span id="primaryLabel">Start</span></button>
+          <button type="button" class="btn btn-step" id="plusBtn" aria-label="Lengthen this infusion by 5 seconds" aria-keyshortcuts="+">+5s</button>
+        </div>
+        <div class="controls-sub">
+          <button type="button" class="btn" id="resetBtn" aria-keyshortcuts="R">Reset</button>
+          <button type="button" class="btn" id="nextBtn" aria-keyshortcuts="N">Next infusion</button>
+        </div>
+      </div>
+
+      <p class="notice" id="notice" hidden></p>
+      <p class="shortcuts">Keyboard: Space starts or pauses, N goes to the next infusion, R resets.</p>
+    </section>
+  </div>
+
+  <!-- ============ Detail column: plan, parameters, log, preferences ============ -->
+  <div class="detail-col">
+    <section class="plan" aria-labelledby="planTitle">
+      <div class="section-head">
+        <h2 class="section-title" id="planTitle">Infusion plan</h2>
+        <p class="plan-formula" id="planFormula"></p>
+      </div>
+      <ol class="plan-list" id="planList"></ol>
+    </section>
+
+    <details class="panel" id="paramsPanel">
+      <summary><span class="summary-text">Brewing parameters</span><span class="tag" id="dirtyTag" hidden>Unsaved changes</span></summary>
+      <div class="panel-body">
+        <p class="tea-about" id="teaAbout"></p>
+        <p class="hint">Edits apply to this session right away. Save them to keep them for next time. To change only the current infusion, use −5s and +5s.</p>
+
+        <form class="fields" id="paramsForm" novalidate autocomplete="off">
+          <div class="field wide">
+            <label for="fName">Tea name</label>
+            <input class="input" id="fName" name="name" type="text" maxlength="40" required aria-describedby="err-name">
+            <p class="field-error" id="err-name" hidden></p>
+          </div>
+          <div class="field">
+            <label for="fTemp">Water (°C)</label>
+            <input class="input" id="fTemp" name="temp" type="number" inputmode="numeric" min="50" max="100" step="1" required aria-describedby="err-temp">
+            <p class="field-error" id="err-temp" hidden></p>
+          </div>
+          <div class="field">
+            <label for="fCount">Number of infusions</label>
+            <input class="input" id="fCount" name="count" type="number" inputmode="numeric" min="1" max="30" step="1" required aria-describedby="err-count">
+            <p class="field-error" id="err-count" hidden></p>
+          </div>
+          <div class="field">
+            <label for="fFirst">First infusion (seconds)</label>
+            <input class="input" id="fFirst" name="firstSec" type="number" inputmode="numeric" min="1" max="600" step="1" required aria-describedby="err-firstSec">
+            <p class="field-error" id="err-firstSec" hidden></p>
+          </div>
+          <div class="field">
+            <label for="fInc">Add each infusion (seconds)</label>
+            <input class="input" id="fInc" name="incSec" type="number" inputmode="numeric" min="0" max="120" step="1" required aria-describedby="err-incSec">
+            <p class="field-error" id="err-incSec" hidden></p>
+          </div>
+          <div class="field">
+            <label class="switch-row" for="fRinse"><span>Rinse first</span><input class="switch" id="fRinse" name="rinse" type="checkbox" role="switch"></label>
+          </div>
+          <div class="field">
+            <label for="fRinseSec">Rinse (seconds)</label>
+            <input class="input" id="fRinseSec" name="rinseSec" type="number" inputmode="numeric" min="1" max="60" step="1" aria-describedby="err-rinseSec">
+            <p class="field-error" id="err-rinseSec" hidden></p>
+          </div>
+          <div class="field wide">
+            <label for="fNotes">Brewing notes</label>
+            <textarea class="input" id="fNotes" name="notes" maxlength="600" rows="3"></textarea>
+          </div>
+        </form>
+
+        <p class="profile-status" id="profileStatus"></p>
+        <div class="form-actions">
+          <button type="button" class="btn btn-solid" id="saveProfileBtn">Save changes</button>
+          <button type="button" class="btn" id="saveNewBtn">Save as new tea</button>
+          <button type="button" class="btn" id="revertBtn">Discard changes</button>
+          <button type="button" class="btn" id="restoreBtn">Restore original values</button>
+          <button type="button" class="btn btn-danger" id="deleteBtn">Delete this tea</button>
+        </div>
+        <p class="feedback" id="profileFeedback" role="status"></p>
+      </div>
+    </details>
+
+    <section class="log" aria-labelledby="logTitle">
+      <div class="section-head center">
+        <h2 class="section-title" id="logTitle">Session log</h2>
+        <button type="button" class="btn btn-small" id="newSessionBtn">New session</button>
+      </div>
+      <p class="empty" id="logEmpty">Nothing brewed yet. Finished infusions appear here.</p>
+      <div class="table-wrap" id="logWrap">
+        <table class="log-table">
+          <thead>
+            <tr><th scope="col">Infusion</th><th scope="col">Target</th><th scope="col">Actual</th><th scope="col">Result</th></tr>
+          </thead>
+          <tbody id="logBody"></tbody>
+          <tfoot>
+            <tr><th scope="row" colspan="2">Total brewing time</th><td id="logTotal">0s</td><td class="muted" id="logTotalNote"></td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <details class="panel" id="prefsPanel">
+      <summary><span class="summary-text">Alerts and display</span></summary>
+      <div class="panel-body prefs">
+        <label class="switch-row" for="pSound"><span>Sound when time is up<small id="soundNote"></small></span><input class="switch" id="pSound" type="checkbox" role="switch"></label>
+        <button type="button" class="btn btn-small" id="testSoundBtn">Play test sound</button>
+        <label class="switch-row" for="pVibrate"><span>Vibrate when time is up<small id="vibrateNote"></small></span><input class="switch" id="pVibrate" type="checkbox" role="switch"></label>
+        <label class="switch-row" for="pWake"><span>Keep screen awake<small id="wakeNote"></small></span><input class="switch" id="pWake" type="checkbox" role="switch"></label>
+        <fieldset class="segmented">
+          <legend>Theme</legend>
+          <div class="segmented-options">
+            <label><input type="radio" name="theme" value="auto"><span>Auto</span></label>
+            <label><input type="radio" name="theme" value="light"><span>Light</span></label>
+            <label><input type="radio" name="theme" value="dark"><span>Dark</span></label>
+          </div>
+        </fieldset>
+        <div class="prefs-foot">
+          <button type="button" class="btn btn-small" id="restoreAllBtn">Restore all built-in teas</button>
+          <p class="hint" id="storageNote" hidden>This browser is blocking local storage, so teas and sessions will not be kept after the page closes.</p>
+        </div>
+      </div>
+    </details>
+  </div>
+</div>
+
+<!-- ============ Tea picker ============ -->
+<dialog class="sheet-dialog" id="teaDialog" aria-labelledby="teaDialogTitle">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 class="section-title" id="teaDialogTitle">Choose a tea</h2>
+      <button type="button" class="icon-btn" id="teaDialogClose" aria-label="Close">
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <p class="hint">Times are starting points. Adjust them for your leaf, vessel and taste.</p>
+    <div class="tea-lists" id="teaLists"></div>
+    <button type="button" class="btn" id="newTeaBtn">Create a new tea</button>
+  </div>
+</dialog>
+
+<!-- ============ Confirmation ============ -->
+<dialog class="confirm-dialog" id="confirmDialog" aria-labelledby="confirmTitle" aria-describedby="confirmMsg">
+  <form method="dialog" class="sheet">
+    <h2 class="section-title" id="confirmTitle"></h2>
+    <p id="confirmMsg"></p>
+    <div class="dialog-actions">
+      <button class="btn" value="cancel" id="confirmCancel">Cancel</button>
+      <button class="btn btn-solid" value="ok" id="confirmOk">Confirm</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="visually-hidden" id="live" aria-live="polite" aria-atomic="true"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ===================================================================
+   * 1. Constants and built-in tea profiles
+   * =================================================================== */
+
+  const KEYS = Object.freeze({
+    profiles: 'gongfu-timer/v1/profiles',
+    session: 'gongfu-timer/v1/session',
+    prefs: 'gongfu-timer/v1/prefs',
+  });
+
+  /** Accepted ranges for every numeric brewing parameter. */
+  const LIMITS = Object.freeze({
+    temp:     Object.freeze({ min: 50, max: 100, unit: '°C' }),
+    count:    Object.freeze({ min: 1,  max: 30,  unit: '' }),
+    firstSec: Object.freeze({ min: 1,  max: 600, unit: 's' }),
+    incSec:   Object.freeze({ min: 0,  max: 120, unit: 's' }),
+    rinseSec: Object.freeze({ min: 1,  max: 60,  unit: 's' }),
+  });
+  const NUMERIC_FIELDS = ['temp', 'count', 'firstSec', 'incSec', 'rinseSec'];
+  const PARAM_FIELDS = ['name', 'temp', 'rinse', 'rinseSec', 'firstSec', 'incSec', 'count', 'notes'];
+  const NAME_MAX = 40;
+  const NOTES_MAX = 600;
+  const STAGE_MIN_MS = 1000;
+  const STAGE_MAX_MS = 60 * 60 * 1000;     // no single infusion longer than an hour
+  const ADJUST_STEP_MS = 5000;
+  const LATE_ALERT_MS = 15000;             // completions noticed later than this are shown, not sounded
+  const PRESS_GUARD_MS = 450;              // ignores accidental double taps on Start/Next
+  const COMPLETE_GUARD_MS = 700;           // ignores a tap that lands just as a timer finishes
+  const DEFAULT_LIQUOR = '#b5803c';
+  const TEXT_DARK = '#1c2621';
+  const TEXT_LIGHT = '#fbf7f0';
+
+  function deepFreeze(obj) {
+    Object.values(obj).forEach((v) => { if (v && typeof v === 'object') deepFreeze(v); });
+    return Object.freeze(obj);
+  }
+
+  /**
+   * Suggested starting points, not rules. Each built-in tea keeps its own
+   * independent defaults; users can override every value.
+   */
+  const BUILTIN_TEAS = deepFreeze([
+    {
+      id: 'shou', aka: 'Shou / Shu', hanzi: '熟普洱', liquor: '#5a2412',
+      tempRange: '95–100°C', rinseAdvice: 'A rinse is recommended.',
+      description: 'Fermented pu-erh: earthy, smooth and sweet, and very forgiving of hot water and long infusions.',
+      defaults: { name: 'Ripe Pu-erh', temp: 98, rinse: true, rinseSec: 10, firstSec: 10, incSec: 5, count: 8,
+        notes: 'Rinse once or twice to wake up compressed leaf. If later infusions turn thin, add 10–20s to the plan.' },
+    },
+    {
+      id: 'sheng', aka: 'Sheng, also written Shen', hanzi: '生普洱', liquor: '#c99a2e',
+      tempRange: '90–100°C', rinseAdvice: 'A rinse is optional.',
+      description: 'Unfermented pu-erh. Bright and floral when young, deeper and mellower as it ages.',
+      defaults: { name: 'Raw Pu-erh', temp: 95, rinse: true, rinseSec: 5, firstSec: 8, incSec: 5, count: 8,
+        notes: 'Young sheng turns bitter quickly: keep early infusions short and pour off completely. Drop the water a few degrees if it bites.' },
+    },
+    {
+      id: 'silver-needle', aka: 'White tea, buds', hanzi: '白毫银针', liquor: '#e2d49a',
+      tempRange: '75–85°C', rinseAdvice: 'No rinse needed.',
+      description: 'White tea made only from downy buds. Delicate, honeyed and silky.',
+      defaults: { name: 'Bai Hao Yin Zhen', temp: 80, rinse: false, rinseSec: 5, firstSec: 25, incSec: 5, count: 6,
+        notes: 'Downy buds float and steep slowly. Cooler water keeps them sweet; pour gently around the leaf.' },
+    },
+    {
+      id: 'bai-mudan', aka: 'White tea, leaves', hanzi: '白牡丹', liquor: '#d4ad5f',
+      tempRange: '80–90°C', rinseAdvice: 'No rinse needed.',
+      description: 'White tea from buds and young leaves. Fuller than Silver Needle, with notes of hay and melon.',
+      defaults: { name: 'Bai Mudan', temp: 85, rinse: false, rinseSec: 5, firstSec: 20, incSec: 5, count: 6,
+        notes: 'Aged Bai Mudan takes hotter water and longer infusions than fresh leaf.' },
+    },
+    {
+      id: 'tieguanyin', aka: 'Light oolong', hanzi: '铁观音', liquor: '#cfcb72',
+      tempRange: '90–95°C', rinseAdvice: 'A rinse is optional.',
+      description: 'Lightly oxidized, ball-rolled oolong from Anxi. Floral and creamy, with an orchid aroma.',
+      defaults: { name: 'Tieguanyin', temp: 93, rinse: false, rinseSec: 5, firstSec: 12, incSec: 5, count: 8,
+        notes: 'Rolled leaves open over the first two or three infusions. A quick rinse helps them unfurl.' },
+    },
+    {
+      id: 'dong-ding', aka: 'Medium oolong', hanzi: '冻顶乌龙', liquor: '#cf9a3e',
+      tempRange: '95–100°C', rinseAdvice: 'A rinse is optional.',
+      description: 'Taiwanese rolled oolong with medium oxidation and a light roast. Nutty, honeyed and round.',
+      defaults: { name: 'Dong Ding', temp: 97, rinse: false, rinseSec: 5, firstSec: 15, incSec: 5, count: 8,
+        notes: 'Warm the vessel well first. The nutty, roasted character builds through the middle infusions.' },
+    },
+    {
+      id: 'roasted-oolong', aka: 'Dark oolong', hanzi: '焙火乌龙', liquor: '#9a4c1c',
+      tempRange: '95–100°C', rinseAdvice: 'A rinse is optional.',
+      description: 'Charcoal-roasted oolongs such as Wuyi rock tea. Toasty and mineral, with a long finish.',
+      defaults: { name: 'Roasted oolong', temp: 98, rinse: false, rinseSec: 5, firstSec: 15, incSec: 10, count: 8,
+        notes: 'Use water just off the boil and keep the lid on between infusions. Longer late infusions bring out the sweetness.' },
+    },
+    {
+      id: 'gaba', aka: 'Jia Ye Long', hanzi: '佳叶龙', liquor: '#a9502c',
+      tempRange: '85–90°C', rinseAdvice: 'A rinse is optional.',
+      description: 'Oolong processed in a nitrogen-rich atmosphere to raise its GABA content. Fruity and tangy.',
+      defaults: { name: 'GABA oolong', temp: 88, rinse: false, rinseSec: 5, firstSec: 25, incSec: 5, count: 6,
+        notes: 'It can turn sour if overbrewed. Shorten the time or cool the water if it tastes sharp.' },
+    },
+  ]);
+
+  const CUSTOM_DEFAULTS = Object.freeze({
+    name: 'New tea', temp: 95, rinse: false, rinseSec: 5, firstSec: 15, incSec: 5, count: 6, notes: '',
+  });
+
+  /** Static inline icons (constant markup, never built from user input). */
+  const ICONS = Object.freeze({
+    play: '<svg viewBox="0 0 24 24" focusable="false"><path d="M8 5.2v13.6L18.8 12z" fill="currentColor"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" focusable="false"><rect x="6.5" y="5" width="4" height="14" rx="1.2" fill="currentColor"/><rect x="13.5" y="5" width="4" height="14" rx="1.2" fill="currentColor"/></svg>',
+    next: '<svg viewBox="0 0 24 24" focusable="false"><path d="M6 5.5v13l9.2-6.5z" fill="currentColor"/><rect x="16.2" y="5.5" width="2.6" height="13" rx="1" fill="currentColor"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" focusable="false"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
+    check: '<svg viewBox="0 0 24 24" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    ring: '<svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>',
+    half: '<svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4.5a7.5 7.5 0 0 1 0 15z" fill="currentColor"/></svg>',
+    dash: '<svg viewBox="0 0 24 24" focusable="false"><path d="M6 12h12" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>',
+  });
+
+  /* ===================================================================
+   * 2. Small utilities
+   * =================================================================== */
+
+  const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+  const isHexColor = (s) => typeof s === 'string' && /^#[0-9a-f]{6}$/i.test(s);
+  const finiteOr = (v, fallback) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+
+  function uid(prefix) {
+    return prefix + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+  }
+
+  /** Large countdown format: MM:SS (rounded up so 0.2s left still reads 00:01). */
+  function formatClock(ms) {
+    const total = Math.max(0, Math.ceil(ms / 1000));
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  }
+
+  /** Compact duration: "25s" under a minute, "1:05" above. */
+  function formatDuration(ms) {
+    const total = Math.max(0, Math.round(ms / 1000));
+    if (total < 60) return total + 's';
+    return Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0');
+  }
+
+  function spokenDuration(ms) {
+    const total = Math.max(0, Math.round(ms / 1000));
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    const parts = [];
+    if (m) parts.push(m + (m === 1 ? ' minute' : ' minutes'));
+    if (s || !m) parts.push(s + (s === 1 ? ' second' : ' seconds'));
+    return parts.join(' ');
+  }
+
+  function agoText(ms) {
+    const s = Math.round(ms / 1000);
+    if (s < 90) return s + ' seconds';
+    const m = Math.round(s / 60);
+    if (m < 60) return m + ' minutes';
+    const h = Math.floor(m / 60);
+    const rest = m % 60;
+    return h + (h === 1 ? ' hour' : ' hours') + (rest ? ' ' + rest + ' min' : '');
+  }
+
+  /** Builds DOM nodes. Text is always inserted as text, never parsed as HTML. */
+  function el(tag, props, ...children) {
+    const node = document.createElement(tag);
+    if (props) {
+      for (const [key, value] of Object.entries(props)) {
+        if (value === null || value === undefined || value === false) continue;
+        if (key === 'class') node.className = value;
+        else if (key === 'style') {
+          for (const [prop, v] of Object.entries(value)) node.style.setProperty(prop, v);
+        } else node.setAttribute(key, value === true ? '' : String(value));
+      }
+    }
+    for (const child of children.flat(Infinity)) {
+      if (child === null || child === undefined || child === false) continue;
+      node.append(child instanceof Node ? child : String(child));
+    }
+    return node;
+  }
+
+  function iconSpan(name, cls) {
+    const span = el('span', { class: cls || 'icon', 'aria-hidden': 'true' });
+    span.innerHTML = ICONS[name] || ''; // static constant markup only
+    return span;
+  }
+
+  function hexToRgb(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+    if (!m) return null;
+    const n = parseInt(m[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function luminance(rgb) {
+    const lin = rgb.map((c) => {
+      const v = c / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+  }
+  const contrast = (l1, l2) => (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+
+  /* ===================================================================
+   * 3. Brewing parameters: formula, sanitising, validation
+   * =================================================================== */
+
+  /** infusionDuration(n) = initialDuration + (n - 1) * increment */
+  function infusionSec(params, n) {
+    return params.firstSec + (n - 1) * params.incSec;
+  }
+  function stageMs(params, stage) {
+    return (stage === 'rinse' ? params.rinseSec : infusionSec(params, stage)) * 1000;
+  }
+  const firstStage = (params) => (params.rinse ? 'rinse' : 1);
+  function nextStageOf(params, stage) {
+    if (stage === 'rinse') return 1;
+    return stage < params.count ? stage + 1 : null;
+  }
+  const stageKey = (stage) => (stage === 'rinse' ? 'rinse' : 'i' + stage);
+  const stageName = (stage) => (stage === 'rinse' ? 'Rinse' : 'Infusion ' + stage);
+  const sameParams = (a, b) => PARAM_FIELDS.every((k) => a[k] === b[k]);
+
+  function cleanName(v) {
+    return typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, NAME_MAX) : '';
+  }
+  function cleanNotes(v) {
+    return typeof v === 'string' ? v.replace(/\r\n?/g, '\n').slice(0, NOTES_MAX) : '';
+  }
+
+  /** Coerces untrusted stored data into valid params, field by field. */
+  function sanitizeParams(raw, fallback) {
+    const src = raw && typeof raw === 'object' ? raw : {};
+    const out = { ...fallback };
+    const name = cleanName(src.name);
+    if (name) out.name = name;
+    for (const key of NUMERIC_FIELDS) {
+      const n = src[key];
+      const lim = LIMITS[key];
+      if (Number.isInteger(n) && n >= lim.min && n <= lim.max) out[key] = n;
+    }
+    if (typeof src.rinse === 'boolean') out.rinse = src.rinse;
+    if (typeof src.notes === 'string') out.notes = cleanNotes(src.notes);
+    if (infusionSec(out, out.count) * 1000 > STAGE_MAX_MS) return { ...fallback };
+    return out;
+  }
+
+  /**
+   * Validates form input. Returns { ok, params, errors }.
+   * minCount stops the plan shrinking below the infusion already in progress.
+   */
+  function validateParams(input, { minCount = 1, fallback }) {
+    const errors = {};
+    const p = {};
+    p.name = cleanName(input.name);
+    if (!p.name) errors.name = 'Give the tea a name.';
+    p.rinse = !!input.rinse;
+    p.notes = cleanNotes(input.notes);
+
+    for (const key of NUMERIC_FIELDS) {
+      const lim = LIMITS[key];
+      const raw = String(input[key] == null ? '' : input[key]).trim();
+      const n = Number(raw);
+      let msg = '';
+      if (raw === '' || !Number.isFinite(n)) msg = 'Enter a number.';
+      else if (!Number.isInteger(n)) msg = 'Use a whole number.';
+      else if (n < lim.min || n > lim.max) msg = 'Use a value from ' + lim.min + ' to ' + lim.max + lim.unit + '.';
+      if (msg && key === 'rinseSec' && !p.rinse) {
+        p.rinseSec = fallback.rinseSec; // rinse is off, keep the last valid value quietly
+        continue;
+      }
+      if (msg) errors[key] = msg;
+      p[key] = n;
+    }
+    if (!errors.count && p.count < minCount) {
+      errors.count = 'This session is already on infusion ' + minCount + ', so keep at least ' + minCount + '.';
+    }
+    if (!errors.firstSec && !errors.incSec && !errors.count) {
+      const lastMs = infusionSec(p, p.count) * 1000;
+      if (lastMs > STAGE_MAX_MS) {
+        errors.incSec = 'The last infusion would run ' + formatDuration(lastMs) + '. Keep it under 60 minutes.';
+      }
+    }
+    return { ok: Object.keys(errors).length === 0, params: p, errors };
+  }
+
+  /* ===================================================================
+   * 4. Local storage (fails soft when storage is blocked or full)
+   * =================================================================== */
+
+  const Store = (() => {
+    let available = false;
+    try {
+      const probe = '__gongfu_probe__';
+      window.localStorage.setItem(probe, '1');
+      window.localStorage.removeItem(probe);
+      available = true;
+    } catch (e) {
+      available = false;
+    }
+    function read(key) {
+      if (!available) return null;
+      try {
+        const text = window.localStorage.getItem(key);
+        return text ? JSON.parse(text) : null;
+      } catch (e) {
+        return null; // corrupt JSON is treated as missing
+      }
+    }
+    function write(key, value) {
+      if (!available) return false;
+      try {
+        window.localStorage.setItem(key, JSON.stringify(value));
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+    return { read, write, get available() { return available; } };
+  })();
+
+  /* ===================================================================
+   * 5. Preferences
+   * =================================================================== */
+
+  const Prefs = (() => {
+    const DEFAULTS = { sound: true, vibrate: true, wakeLock: false, theme: 'auto' };
+    let prefs = { ...DEFAULTS };
+    function load() {
+      const raw = Store.read(KEYS.prefs);
+      prefs = { ...DEFAULTS };
+      if (raw && typeof raw === 'object') {
+        for (const k of ['sound', 'vibrate', 'wakeLock']) if (typeof raw[k] === 'boolean') prefs[k] = raw[k];
+        if (['auto', 'light', 'dark'].includes(raw.theme)) prefs.theme = raw.theme;
+      }
+    }
+    function set(key, value) {
+      prefs[key] = value;
+      Store.write(KEYS.prefs, prefs);
+    }
+    return { load, set, get: () => ({ ...prefs }) };
+  })();
+
+  /* ===================================================================
+   * 6. Profile management (built-in overrides + custom teas)
+   * =================================================================== */
+
+  const Profiles = (() => {
+    const builtinById = new Map(BUILTIN_TEAS.map((t) => [t.id, t]));
+    let overrides = Object.create(null); // builtinId -> params
+    let customs = [];                    // [{ id, liquor, params }]
+
+    function load() {
+      overrides = Object.create(null);
+      customs = [];
+      const raw = Store.read(KEYS.profiles);
+      if (!raw || typeof raw !== 'object') return;
+      const ov = raw.overrides;
+      if (ov && typeof ov === 'object') {
+        for (const t of BUILTIN_TEAS) {
+          if (Object.prototype.hasOwnProperty.call(ov, t.id)) {
+            const p = sanitizeParams(ov[t.id], t.defaults);
+            if (!sameParams(p, t.defaults)) overrides[t.id] = p;
+          }
+        }
+      }
+      if (Array.isArray(raw.customs)) {
+        for (const c of raw.customs.slice(0, 200)) {
+          if (!c || typeof c !== 'object' || typeof c.id !== 'string' || !/^c-[a-z0-9-]{1,40}$/i.test(c.id)) continue;
+          if (customs.some((x) => x.id === c.id)) continue;
+          customs.push({
+            id: c.id,
+            liquor: isHexColor(c.liquor) ? c.liquor : DEFAULT_LIQUOR,
+            params: sanitizeParams(c.params, CUSTOM_DEFAULTS),
+          });
+        }
+      }
+    }
+
+    function persist() {
+      return Store.write(KEYS.profiles, { v: 1, overrides, customs });
+    }
+
+    /** A read-only view of one profile, or null. */
+    function get(id) {
+      const b = builtinById.get(id);
+      if (b) {
+        return {
+          id, builtin: true, edited: !!overrides[id], meta: b, liquor: b.liquor,
+          params: { ...(overrides[id] || b.defaults) }, defaults: { ...b.defaults },
+        };
+      }
+      const c = customs.find((x) => x.id === id);
+      if (c) return { id, builtin: false, edited: false, meta: null, liquor: c.liquor, params: { ...c.params }, defaults: null };
+      return null;
+    }
+
+    function list() {
+      return { builtins: BUILTIN_TEAS.map((t) => get(t.id)), customs: customs.map((c) => get(c.id)) };
+    }
+
+    function save(id, params) {
+      const b = builtinById.get(id);
+      if (b) {
+        if (sameParams(params, b.defaults)) delete overrides[id];
+        else overrides[id] = { ...params };
+        return persist();
+      }
+      const c = customs.find((x) => x.id === id);
+      if (!c) return false;
+      c.params = { ...params };
+      return persist();
+    }
+
+    function uniqueName(name) {
+      const taken = new Set();
+      BUILTIN_TEAS.forEach((t) => taken.add(get(t.id).params.name.toLowerCase()));
+      customs.forEach((c) => taken.add(c.params.name.toLowerCase()));
+      if (!taken.has(name.toLowerCase())) return name;
+      for (let i = 2; i < 100; i++) {
+        const suffix = ' (' + i + ')';
+        const candidate = name.slice(0, NAME_MAX - suffix.length).trim() + suffix;
+        if (!taken.has(candidate.toLowerCase())) return candidate;
+      }
+      return name;
+    }
+
+    function create(params, liquor) {
+      const id = uid('c-');
+      customs.push({ id, liquor: isHexColor(liquor) ? liquor : DEFAULT_LIQUOR, params: { ...params } });
+      return { id, saved: persist() };
+    }
+
+    function remove(id) {
+      const i = customs.findIndex((c) => c.id === id);
+      if (i < 0) return false;
+      customs.splice(i, 1);
+      persist();
+      return true;
+    }
+
+    function restore(id) {
+      if (!builtinById.has(id)) return false;
+      delete overrides[id];
+      return persist();
+    }
+
+    function restoreAll() {
+      overrides = Object.create(null);
+      return persist();
+    }
+
+    const hasOverrides = () => Object.keys(overrides).length > 0;
+
+    return { load, get, list, save, create, remove, restore, restoreAll, uniqueName, hasOverrides };
+  })();
+
+  /* ===================================================================
+   * 7. Timer engine: pure time arithmetic on a timer record.
+   *    Time comes from a wall-clock reference (Date.now), never from
+   *    counting interval callbacks, so throttled or frozen tabs cannot
+   *    make it drift.
+   * =================================================================== */
+
+  const Engine = Object.freeze({
+    durationMs(t) {
+      return clamp(t.targetMs + t.adjustMs, STAGE_MIN_MS, STAGE_MAX_MS);
+    },
+    elapsedMs(t, now) {
+      if (t.status === 'running' && t.startedAt !== null) {
+        return t.accumulatedMs + Math.max(0, now - t.startedAt);
+      }
+      return t.accumulatedMs;
+    },
+    remainingMs(t, now) {
+      return Math.max(0, Engine.durationMs(t) - Engine.elapsedMs(t, now));
+    },
+    /** Wall-clock time at which a running timer reaches zero. */
+    endsAt(t) {
+      return t.startedAt + Engine.durationMs(t) - t.accumulatedMs;
+    },
+  });
+
+  /* ===================================================================
+   * 8. Session state: current stage, timer and history.
+   *    Every transition is guarded by the current status, so repeated
+   *    or out-of-order calls are harmless no-ops.
+   * =================================================================== */
+
+  const Session = (() => {
+    let s = null;
+
+    function blankTimer(params, stage) {
+      return { status: 'idle', targetMs: stageMs(params, stage), adjustMs: 0, accumulatedMs: 0, startedAt: null, endedAt: null };
+    }
+
+    function create(profileId, params, liquor) {
+      const p = { ...params };
+      const stage = firstStage(p);
+      s = {
+        v: 1,
+        profileId: profileId || null,
+        liquor: isHexColor(liquor) ? liquor : DEFAULT_LIQUOR,
+        params: p,
+        stage,
+        timer: blankTimer(p, stage),
+        history: [],
+        createdAt: Date.now(),
+      };
+    }
+
+    function sanitizeEntry(h) {
+      if (!h || typeof h !== 'object' || typeof h.key !== 'string') return null;
+      const m = /^(rinse|i(\d{1,2}))$/.exec(h.key);
+      if (!m) return null;
+      const n = m[2] ? Number(m[2]) : 0;
+      if (m[2] && (n < 1 || n > LIMITS.count.max)) return null;
+      if (!['completed', 'stopped', 'skipped'].includes(h.result)) return null;
+      const targetMs = finiteOr(h.targetMs, NaN);
+      const actualMs = finiteOr(h.actualMs, NaN);
+      if (!(targetMs >= 0 && targetMs <= STAGE_MAX_MS && actualMs >= 0 && actualMs <= STAGE_MAX_MS)) return null;
+      return { key: h.key, n, targetMs, actualMs, result: h.result, at: finiteOr(h.at, Date.now()) };
+    }
+
+    /** Restores a stored session. Returns false if it is missing or unusable. */
+    function restore(raw) {
+      if (!raw || typeof raw !== 'object' || raw.v !== 1 || !raw.timer || typeof raw.timer !== 'object') return false;
+      const profileId = typeof raw.profileId === 'string' ? raw.profileId : null;
+      const profile = profileId ? Profiles.get(profileId) : null;
+      const params = sanitizeParams(raw.params, profile ? profile.params : CUSTOM_DEFAULTS);
+
+      const stage = raw.stage === 'rinse' ? 'rinse' : raw.stage;
+      if (stage !== 'rinse' && !(Number.isInteger(stage) && stage >= 1 && stage <= LIMITS.count.max)) return false;
+      if (stage !== 'rinse' && stage > params.count) params.count = stage;
+      if (stage === 'rinse' && !params.rinse) params.rinse = true;
+
+      const history = [];
+      if (Array.isArray(raw.history)) {
+        for (const h of raw.history.slice(0, 64)) {
+          const e = sanitizeEntry(h);
+          if (e && !history.some((x) => x.key === e.key)) history.push(e);
+        }
+      }
+
+      const rt = raw.timer;
+      const timer = {
+        status: ['idle', 'running', 'paused', 'done'].includes(rt.status) ? rt.status : 'idle',
+        targetMs: finiteOr(rt.targetMs, NaN),
+        adjustMs: finiteOr(rt.adjustMs, 0),
+        accumulatedMs: Math.max(0, finiteOr(rt.accumulatedMs, 0)),
+        startedAt: finiteOr(rt.startedAt, null),
+        endedAt: finiteOr(rt.endedAt, null),
+      };
+      if (!(timer.targetMs >= STAGE_MIN_MS && timer.targetMs <= STAGE_MAX_MS)) timer.targetMs = stageMs(params, stage);
+      timer.adjustMs = Engine.durationMs(timer) - timer.targetMs;
+      timer.accumulatedMs = Math.min(timer.accumulatedMs, Engine.durationMs(timer));
+      if (timer.status === 'running') {
+        if (timer.startedAt === null || timer.startedAt > Date.now() + 60000) {
+          timer.status = 'paused'; // impossible start time (clock change): keep progress, don't guess
+          timer.startedAt = null;
+        }
+      } else {
+        timer.startedAt = null;
+      }
+      if (timer.status === 'idle') timer.accumulatedMs = 0;
+
+      // Keep timer and log consistent: a finished stage is always logged exactly once.
+      const key = stageKey(stage);
+      const logged = history.some((h) => h.key === key);
+      if (timer.status === 'done' && !logged) {
+        const dur = Engine.durationMs(timer);
+        history.push({
+          key, n: stage === 'rinse' ? 0 : stage, targetMs: dur, actualMs: timer.accumulatedMs,
+          result: timer.accumulatedMs >= dur ? 'completed' : (timer.accumulatedMs > 0 ? 'stopped' : 'skipped'),
+          at: timer.endedAt || Date.now(),
+        });
+      } else if (timer.status !== 'done' && logged) {
+        timer.status = 'done';
+        timer.startedAt = null;
+      }
+
+      s = {
+        v: 1,
+        profileId: profile ? profileId : (profileId && /^c-/.test(profileId) ? profileId : null),
+        liquor: isHexColor(raw.liquor) ? raw.liquor : (profile ? profile.liquor : DEFAULT_LIQUOR),
+        params, stage, timer, history,
+        createdAt: finiteOr(raw.createdAt, Date.now()),
+      };
+      return true;
+    }
+
+    function save() { return Store.write(KEYS.session, s); }
+
+    const isRecorded = (stage) => s.history.some((h) => h.key === stageKey(stage));
+    const isStarted = () => s.history.length > 0 || s.timer.status !== 'idle';
+    const isLastStage = () => s.stage !== 'rinse' && s.stage >= s.params.count;
+    const isFinished = () => isLastStage() && isRecorded(s.stage);
+    const minCount = () => (typeof s.stage === 'number' ? s.stage : 1);
+
+    function isDirty() {
+      const profile = s.profileId ? Profiles.get(s.profileId) : null;
+      return !profile || !sameParams(s.params, profile.params);
+    }
+
+    /** Adds one log entry for a stage. Guarded so a stage can never be logged twice. */
+    function record(stage, result, actualMs, at) {
+      const key = stageKey(stage);
+      if (s.history.some((h) => h.key === key)) return false;
+      s.history.push({
+        key, n: stage === 'rinse' ? 0 : stage,
+        targetMs: Engine.durationMs(s.timer),
+        actualMs: Math.round(clamp(actualMs, 0, STAGE_MAX_MS)),
+        result, at,
+      });
+      return true;
+    }
+
+    function start(now) {
+      const t = s.timer;
+      if (isFinished() || t.status !== 'idle') return false;
+      t.status = 'running';
+      t.accumulatedMs = 0;
+      t.startedAt = now;
+      t.endedAt = null;
+      return true;
+    }
+
+    function pause(now) {
+      const t = s.timer;
+      if (t.status !== 'running') return false;
+      t.accumulatedMs = Math.min(Engine.durationMs(t), Engine.elapsedMs(t, now));
+      t.startedAt = null;
+      t.status = 'paused';
+      return true;
+    }
+
+    function resume(now) {
+      const t = s.timer;
+      if (t.status !== 'paused') return false;
+      t.startedAt = now;
+      t.status = 'running';
+      return true;
+    }
+
+    /** Restarts the current stage. When already at zero elapsed, clears a ±5s adjustment. */
+    function reset() {
+      const t = s.timer;
+      if (t.status === 'running' || t.status === 'paused') {
+        t.status = 'idle';
+        t.accumulatedMs = 0;
+        t.startedAt = null;
+        return true;
+      }
+      if (t.status === 'idle' && t.adjustMs !== 0) {
+        t.adjustMs = 0;
+        return true;
+      }
+      return false;
+    }
+
+    /** Called by the ticker. Completes a running timer once it reaches zero. */
+    function complete(now) {
+      const t = s.timer;
+      if (t.status !== 'running') return null;
+      const dur = Engine.durationMs(t);
+      if (Engine.elapsedMs(t, now) < dur) return null;
+      const endAt = Engine.endsAt(t);
+      t.status = 'done';
+      t.accumulatedMs = dur;
+      t.startedAt = null;
+      t.endedAt = endAt;
+      record(s.stage, 'completed', dur, endAt);
+      return { stage: s.stage, lateMs: Math.max(0, now - endAt), finished: isFinished() };
+    }
+
+    /**
+     * Moves to the next stage without starting it. An unfinished stage is logged
+     * as poured early (time > 0) or skipped (no time) before moving on.
+     */
+    function next(now) {
+      if (isFinished()) return null;
+      const t = s.timer;
+      let logged = null;
+      if (!isRecorded(s.stage)) {
+        const elapsed = Math.min(Engine.durationMs(t), Engine.elapsedMs(t, now));
+        logged = elapsed > 0 ? 'stopped' : 'skipped';
+        record(s.stage, logged, elapsed, now);
+        t.accumulatedMs = elapsed;
+        t.startedAt = null;
+        t.status = 'done';
+        t.endedAt = now;
+      }
+      const ns = nextStageOf(s.params, s.stage);
+      if (ns === null) return { logged, stage: null, finished: true };
+      s.stage = ns;
+      s.timer = blankTimer(s.params, ns);
+      return { logged, stage: ns, finished: false };
+    }
+
+    /** After the last planned infusion: adds one more infusion to this session and prepares it. */
+    function extend(now) {
+      if (!isFinished() || s.params.count >= LIMITS.count.max) return null;
+      if (infusionSec(s.params, s.params.count + 1) * 1000 > STAGE_MAX_MS) return null;
+      s.params.count += 1;
+      return next(now);
+    }
+
+    /** The duration ±5s would produce, or the current duration if not allowed. */
+    function adjustedDuration(delta, now) {
+      const t = s.timer;
+      const cur = Engine.durationMs(t);
+      if (isFinished() || t.status === 'done') return cur;
+      let target = clamp(cur + delta, STAGE_MIN_MS, STAGE_MAX_MS);
+      if (delta < 0) {
+        // Never shorten past the time already brewed; leave at least one second.
+        const floor = Math.ceil((Engine.elapsedMs(t, now) + 1000) / 1000) * 1000;
+        target = Math.max(target, Math.min(cur, floor));
+      }
+      return target;
+    }
+
+    function adjust(delta, now) {
+      const t = s.timer;
+      const target = adjustedDuration(delta, now);
+      if (target === Engine.durationMs(t)) return false;
+      t.adjustMs = target - t.targetMs;
+      return true;
+    }
+
+    /**
+     * Applies edited parameters to this session only. A stage that has not
+     * started picks up the new duration; a stage in progress keeps its target.
+     */
+    function applyParams(params) {
+      const started = isStarted();
+      s.params = { ...params };
+      if (!started) {
+        const stage = firstStage(s.params);
+        const keepAdjust = stage === s.stage ? s.timer.adjustMs : 0;
+        s.stage = stage;
+        s.timer = blankTimer(s.params, stage);
+        s.timer.adjustMs = keepAdjust;
+        s.timer.adjustMs = Engine.durationMs(s.timer) - s.timer.targetMs;
+        return;
+      }
+      const t = s.timer;
+      if (t.status === 'idle') {
+        t.targetMs = stageMs(s.params, s.stage);
+        t.adjustMs = Engine.durationMs(t) - t.targetMs;
+      }
+    }
+
+    function adopt(profileId, name, liquor) {
+      s.profileId = profileId;
+      if (name) s.params.name = name;
+      if (isHexColor(liquor)) s.liquor = liquor;
+    }
+
+    return {
+      get state() { return s; },
+      create, restore, save,
+      isRecorded, isStarted, isLastStage, isFinished, isDirty, minCount,
+      start, pause, resume, reset, complete, next, extend, adjust, adjustedDuration,
+      applyParams, adopt,
+    };
+  })();
+
+  /* ===================================================================
+   * 9. Alerts: Web Audio chime + vibration
+   * =================================================================== */
+
+  const Alerts = (() => {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const audioSupported = typeof AC === 'function';
+    const vibrationSupported = typeof navigator.vibrate === 'function';
+    let ctx = null;
+    let gestureSeen = false;
+
+    function ensureContext() {
+      if (!audioSupported) return null;
+      if (!ctx) {
+        try { ctx = new AC(); } catch (e) { ctx = null; }
+      }
+      return ctx;
+    }
+
+    /** Called from user gestures; browsers only allow audio after one. */
+    function unlock() {
+      gestureSeen = true;
+      const c = ensureContext();
+      if (!c) return;
+      try {
+        if (c.state === 'suspended' && typeof c.resume === 'function') c.resume().catch(() => {});
+        // A silent one-sample buffer fully unlocks audio on iOS Safari.
+        const buffer = c.createBuffer(1, 1, 22050);
+        const src = c.createBufferSource();
+        src.buffer = buffer;
+        src.connect(c.destination);
+        src.start(0);
+      } catch (e) { /* ignore */ }
+    }
+
+    const isReady = () => !!ctx && ctx.state === 'running';
+
+    /** One soft bowl-like strike made of a few decaying partials. */
+    function strike(c, when, freq, peak) {
+      const master = c.createGain();
+      master.gain.setValueAtTime(0.0001, when);
+      master.gain.exponentialRampToValueAtTime(peak, when + 0.015);
+      master.gain.exponentialRampToValueAtTime(0.0001, when + 2.4);
+      master.connect(c.destination);
+      for (const [ratio, amp] of [[1, 1], [2.01, 0.3], [2.76, 0.16], [5.4, 0.05]]) {
+        const osc = c.createOscillator();
+        const g = c.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq * ratio, when);
+        g.gain.setValueAtTime(amp, when);
+        osc.connect(g);
+        g.connect(master);
+        osc.start(when);
+        osc.stop(when + 2.5);
+      }
+    }
+
+    function schedule(c) {
+      const t0 = c.currentTime + 0.05;
+      strike(c, t0, 660, 0.3);
+      strike(c, t0 + 0.6, 660, 0.24);
+      strike(c, t0 + 1.2, 880, 0.28);
+    }
+
+    /** Plays the chime once. Returns 'played', 'blocked' or 'unsupported'. */
+    function chime() {
+      const c = ensureContext();
+      if (!c) return 'unsupported';
+      try {
+        if (c.state === 'running') { schedule(c); return 'played'; }
+        const asked = performance.now();
+        const p = typeof c.resume === 'function' ? c.resume() : null;
+        if (p && typeof p.then === 'function') {
+          // Only play if the browser allows it promptly; a chime minutes later would be confusing.
+          p.then(() => { if (c.state === 'running' && performance.now() - asked < 1500) schedule(c); }, () => {});
+        }
+        return gestureSeen ? 'played' : 'blocked';
+      } catch (e) {
+        return 'unsupported';
+      }
+    }
+
+    function vibrate() {
+      if (!vibrationSupported) return 'unsupported';
+      // Browsers ignore vibration until the page has had a tap; skip the call rather than trigger a warning.
+      if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return 'blocked';
+      try {
+        return navigator.vibrate([220, 120, 220, 120, 420]) ? 'played' : 'blocked';
+      } catch (e) {
+        return 'unsupported';
+      }
+    }
+
+    function fire(prefs) {
+      return {
+        sound: prefs.sound ? chime() : 'off',
+        vibrate: prefs.vibrate ? vibrate() : 'off',
+      };
+    }
+
+    return { audioSupported, vibrationSupported, unlock, isReady, chime, fire };
+  })();
+
+  /* ===================================================================
+   * 10. Screen Wake Lock (optional)
+   * =================================================================== */
+
+  const WakeLock = (() => {
+    const supported = 'wakeLock' in navigator && !!navigator.wakeLock && typeof navigator.wakeLock.request === 'function';
+    let sentinel = null;
+    let pending = false;
+    let lastError = '';
+
+    async function acquire() {
+      if (!supported || !Prefs.get().wakeLock || sentinel || pending || document.visibilityState !== 'visible') return;
+      pending = true;
+      try {
+        const lock = await navigator.wakeLock.request('screen');
+        if (!Prefs.get().wakeLock) {
+          lock.release().catch(() => {});
+        } else {
+          sentinel = lock;
+          lastError = '';
+          lock.addEventListener('release', () => {
+            if (sentinel === lock) sentinel = null;
+            UI.renderPrefs();
+          });
+        }
+      } catch (err) {
+        lastError = err && err.name === 'NotAllowedError'
+          ? 'The browser refused, often because of battery saver.'
+          : 'This browser could not keep the screen on.';
+      } finally {
+        pending = false;
+        UI.renderPrefs();
+      }
+    }
+
+    async function release() {
+      const lock = sentinel;
+      sentinel = null;
+      lastError = '';
+      if (lock) {
+        try { await lock.release(); } catch (e) { /* ignore */ }
+      }
+      UI.renderPrefs();
+    }
+
+    return { supported, acquire, release, get active() { return !!sentinel; }, get error() { return lastError; } };
+  })();
+
+  /* ===================================================================
+   * 11. Ticker: one interval + one exact end-time timeout + rAF while
+   *     visible. All three only re-render and reconcile; none of them
+   *     changes time, so duplicates cannot accelerate the countdown.
+   * =================================================================== */
+
+  const Ticker = (() => {
+    let intervalId = 0;
+    let timeoutId = 0;
+    let rafId = 0;
+
+    function stop() {
+      if (intervalId) clearInterval(intervalId);
+      if (timeoutId) clearTimeout(timeoutId);
+      if (rafId) cancelAnimationFrame(rafId);
+      intervalId = timeoutId = rafId = 0;
+    }
+
+    /** Recreates timers to match the current state. Safe to call any number of times. */
+    function sync() {
+      stop();
+      const t = Session.state.timer;
+      if (t.status !== 'running') return;
+      intervalId = setInterval(tick, 500);
+      timeoutId = setTimeout(tick, Engine.remainingMs(t, Date.now()) + 15);
+      if (document.visibilityState === 'visible') rafId = requestAnimationFrame(frame);
+    }
+
+    function frame() {
+      rafId = 0;
+      tick();
+      if (Session.state.timer.status === 'running' && document.visibilityState === 'visible' && !rafId) {
+        rafId = requestAnimationFrame(frame);
+      }
+    }
+
+    function tick() {
+      reconcile('tick');
+      UI.renderClock();
+    }
+
+    /** Completes the timer if its end time has passed. Returns true if it just completed. */
+    function reconcile(source) {
+      const info = Session.complete(Date.now());
+      if (!info) return false;
+      info.source = source;
+      App.onComplete(info);
+      return true;
+    }
+
+    return { sync, stop, reconcile };
+  })();
+
+  /* ===================================================================
+   * 12. UI rendering
+   * =================================================================== */
+
+  const UI = (() => {
+    const els = {};
+    const cache = { clock: '', pct: -1, step: -1, title: '', liquor: '' };
+    let cupColors = null;
+    let formErrors = false;
+    let feedbackTimer = 0;
+    const reduceMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+
+    function cacheElements() {
+      const ids = [
+        'teaButton', 'teaSwatch', 'teaName', 'teaSub', 'teaTemp', 'stageLine', 'cup', 'cupArc', 'cupLiquor', 'cupSheen',
+        'clock', 'stateIcon', 'stateText', 'ripple', 'a11yProgress', 'targetNow', 'adjustTag', 'targetNextLabel',
+        'targetNext', 'minusBtn', 'primaryBtn', 'primaryIcon', 'primaryLabel', 'plusBtn', 'resetBtn', 'nextBtn', 'notice',
+        'planFormula', 'planList', 'paramsPanel', 'dirtyTag', 'teaAbout', 'paramsForm', 'fName', 'fTemp', 'fCount',
+        'fFirst', 'fInc', 'fRinse', 'fRinseSec', 'fNotes', 'profileStatus', 'saveProfileBtn', 'saveNewBtn', 'revertBtn',
+        'restoreBtn', 'deleteBtn', 'profileFeedback', 'newSessionBtn', 'logEmpty', 'logWrap', 'logBody', 'logTotal',
+        'logTotalNote', 'prefsPanel', 'pSound', 'soundNote', 'testSoundBtn', 'pVibrate', 'vibrateNote', 'pWake', 'wakeNote',
+        'restoreAllBtn', 'storageNote', 'teaDialog', 'teaDialogClose', 'teaLists', 'newTeaBtn', 'confirmDialog',
+        'confirmTitle', 'confirmMsg', 'confirmCancel', 'confirmOk', 'live', 'themeColor',
+      ];
+      for (const id of ids) els[id] = document.getElementById(id);
+      els.themeRadios = Array.from(document.querySelectorAll('input[name="theme"]'));
+      els.formInputs = { name: els.fName, temp: els.fTemp, count: els.fCount, firstSec: els.fFirst, incSec: els.fInc, rinseSec: els.fRinseSec };
+    }
+
+    /* ---------- dialogs ---------- */
+
+    function openDialog(d) {
+      if (typeof d.showModal === 'function') { if (!d.open) d.showModal(); }
+      else d.setAttribute('open', '');
+    }
+    function closeDialog(d) {
+      if (typeof d.close === 'function') { if (d.open) d.close(); }
+      else d.removeAttribute('open');
+    }
+
+    /** Promise-based confirmation. Resolves true only on an explicit confirm. */
+    function confirm({ title, message, confirmLabel, danger }) {
+      const d = els.confirmDialog;
+      if (typeof d.showModal !== 'function') return Promise.resolve(window.confirm(title + '\n\n' + message));
+      return new Promise((resolve) => {
+        els.confirmTitle.textContent = title;
+        els.confirmMsg.textContent = message;
+        els.confirmOk.textContent = confirmLabel || 'Confirm';
+        els.confirmOk.classList.toggle('btn-danger', !!danger);
+        d.returnValue = '';
+        d.onclose = () => {
+          d.onclose = null;
+          resolve(d.returnValue === 'ok');
+        };
+        openDialog(d);
+        els.confirmCancel.focus();
+      });
+    }
+
+    function openTeaDialog() {
+      renderTeaLists();
+      openDialog(els.teaDialog);
+      const current = els.teaLists.querySelector('[aria-current="true"]');
+      if (current) {
+        current.scrollIntoView({ block: 'nearest' });
+        current.focus();
+      } else {
+        els.teaDialogClose.focus();
+      }
+    }
+    const closeTeaDialog = () => closeDialog(els.teaDialog);
+
+    /* ---------- tea picker ---------- */
+
+    function progressionText(p) {
+      return p.incSec === 0 ? p.firstSec + 's each time' : p.firstSec + 's, then +' + p.incSec + 's';
+    }
+
+    function teaOption(view, currentId) {
+      const p = view.params;
+      const isCurrent = view.id === currentId;
+      const btn = el('button', { type: 'button', class: 'tea-option', 'data-id': view.id, 'aria-current': isCurrent ? 'true' : null },
+        el('span', { class: 'swatch', 'aria-hidden': 'true', style: { '--liquor': view.liquor } }),
+        el('span', { class: 'opt-main' },
+          el('span', { class: 'opt-name-line' },
+            el('span', { class: 'opt-name' }, p.name),
+            view.meta ? el('span', { class: 'opt-aka' }, view.meta.aka, ' ', el('span', { class: 'hanzi', lang: 'zh-Hans' }, view.meta.hanzi)) : null,
+            isCurrent ? el('span', { class: 'tag tag-accent' }, 'Current') : null,
+            view.edited ? el('span', { class: 'tag' }, 'Edited') : null),
+          view.meta ? el('span', { class: 'opt-desc' }, view.meta.description) : null,
+          el('span', { class: 'opt-stats' },
+            el('span', null, p.temp + '°C'),
+            el('span', null, progressionText(p)),
+            el('span', null, p.count + (p.count === 1 ? ' infusion' : ' infusions')),
+            el('span', null, p.rinse ? 'Rinse ' + p.rinseSec + 's' : 'No rinse'))));
+      return el('li', null, btn);
+    }
+
+    function renderTeaLists() {
+      const { builtins, customs } = Profiles.list();
+      const currentId = Session.state.profileId;
+      const nodes = [
+        el('h3', { class: 'list-title', id: 'builtinTeasTitle' }, 'Built-in teas'),
+        el('ul', { class: 'tea-list', 'aria-labelledby': 'builtinTeasTitle' }, builtins.map((v) => teaOption(v, currentId))),
+      ];
+      if (customs.length) {
+        nodes.push(el('h3', { class: 'list-title', id: 'customTeasTitle' }, 'Your teas'));
+        nodes.push(el('ul', { class: 'tea-list', 'aria-labelledby': 'customTeasTitle' }, customs.map((v) => teaOption(v, currentId))));
+      }
+      els.teaLists.replaceChildren(...nodes);
+    }
+
+    /* ---------- header ---------- */
+
+    function renderHeader() {
+      const st = Session.state;
+      const profile = st.profileId ? Profiles.get(st.profileId) : null;
+      els.teaName.textContent = st.params.name;
+      els.teaTemp.textContent = st.params.temp + '°C';
+      els.teaSwatch.style.setProperty('--liquor', st.liquor);
+      const sub = [];
+      if (profile && profile.meta) {
+        sub.push(el('span', null, profile.meta.aka));
+        sub.push(el('span', { class: 'hanzi', lang: 'zh-Hans' }, profile.meta.hanzi));
+      } else {
+        sub.push(el('span', null, profile ? 'Your tea' : 'Not saved as a tea'));
+      }
+      els.teaSub.replaceChildren(...sub);
+    }
+
+    /* ---------- stage, targets, controls ---------- */
+
+    function visualState() {
+      if (Session.isFinished()) return 'finished';
+      return Session.state.timer.status;
+    }
+
+    function renderStage() {
+      const st = Session.state;
+      if (st.stage === 'rinse') {
+        els.stageLine.replaceChildren(el('strong', null, 'Rinse'), el('span', { class: 'stage-of' }, 'before infusion 1'));
+      } else {
+        els.stageLine.replaceChildren(el('strong', null, 'Infusion ' + st.stage), el('span', { class: 'stage-of' }, 'of ' + st.params.count));
+      }
+      const vs = visualState();
+      const labels = {
+        idle: 'Ready', running: st.stage === 'rinse' ? 'Rinsing' : 'Brewing', paused: 'Paused',
+        done: 'Done', finished: 'Session complete',
+      };
+      const icons = { idle: 'ring', running: 'play', paused: 'pause', done: 'check', finished: 'check' };
+      els.cup.dataset.state = vs;
+      els.stateText.textContent = labels[vs];
+      els.stateIcon.innerHTML = ICONS[icons[vs]]; // static constant markup
+    }
+
+    function renderTargets() {
+      const st = Session.state;
+      const t = st.timer;
+      els.targetNow.textContent = formatDuration(Engine.durationMs(t));
+      if (t.adjustMs !== 0) {
+        const sign = t.adjustMs > 0 ? '+' : '−';
+        els.adjustTag.hidden = false;
+        els.adjustTag.textContent = sign + formatDuration(Math.abs(t.adjustMs));
+        els.adjustTag.title = 'Changed for this infusion only';
+        els.adjustTag.setAttribute('aria-label', 'changed by ' + sign + spokenDuration(Math.abs(t.adjustMs)) + ' for this infusion only');
+      } else {
+        els.adjustTag.hidden = true;
+      }
+      const ns = nextStageOf(st.params, st.stage);
+      if (ns === null) {
+        els.targetNextLabel.textContent = 'Next infusion';
+        els.targetNext.textContent = Session.isFinished() ? 'None' : 'None, last one';
+      } else {
+        els.targetNextLabel.textContent = 'Next: infusion ' + ns;
+        els.targetNext.textContent = formatDuration(stageMs(st.params, ns));
+      }
+    }
+
+    function setPrimary(icon, label, disabled) {
+      els.primaryIcon.innerHTML = ICONS[icon]; // static constant markup
+      els.primaryLabel.textContent = label;
+      els.primaryBtn.disabled = !!disabled;
+    }
+
+    function renderControls() {
+      const st = Session.state;
+      const t = st.timer;
+      const finished = Session.isFinished();
+      if (finished) {
+        const canExtend = st.params.count < LIMITS.count.max && infusionSec(st.params, st.params.count + 1) * 1000 <= STAGE_MAX_MS;
+        setPrimary('plus', 'One more infusion', !canExtend);
+      } else if (t.status === 'idle') {
+        setPrimary('play', st.stage === 'rinse' ? 'Start rinse' : 'Start', false);
+      } else if (t.status === 'running') {
+        setPrimary('pause', 'Pause', false);
+      } else if (t.status === 'paused') {
+        setPrimary('play', 'Resume', false);
+      } else {
+        setPrimary('next', st.stage === 'rinse' ? 'Go to infusion 1' : 'Next infusion', false);
+      }
+
+      els.resetBtn.disabled = !(t.status === 'running' || t.status === 'paused' || (t.status === 'idle' && t.adjustMs !== 0));
+      els.resetBtn.textContent = t.status === 'idle' && t.adjustMs !== 0 ? 'Clear change' : 'Reset';
+
+      els.nextBtn.disabled = finished;
+      if (st.stage === 'rinse' && t.status === 'idle') els.nextBtn.textContent = 'Skip rinse';
+      else if (Session.isLastStage() && !finished) els.nextBtn.textContent = 'Finish session';
+      else els.nextBtn.textContent = 'Next infusion';
+
+      els.newSessionBtn.disabled = !Session.isStarted();
+      updateAdjustButtons(Date.now());
+    }
+
+    function updateAdjustButtons(now) {
+      const t = Session.state.timer;
+      const cur = Engine.durationMs(t);
+      els.minusBtn.disabled = Session.adjustedDuration(-ADJUST_STEP_MS, now) === cur;
+      els.plusBtn.disabled = Session.adjustedDuration(ADJUST_STEP_MS, now) === cur;
+    }
+
+    /* ---------- the cup: countdown, progress arc, liquor colour ---------- */
+
+    function getCupColors() {
+      if (!cupColors) {
+        const surface = hexToRgb(getComputedStyle(els.cup).getPropertyValue('--cup-surface')) || [250, 251, 247];
+        cupColors = { surface, darkL: luminance(hexToRgb(TEXT_DARK)), lightL: luminance(hexToRgb(TEXT_LIGHT)) };
+      }
+      return cupColors;
+    }
+
+    /**
+     * The liquor deepens the way real tea does, by absorption (Beer–Lambert):
+     * each channel's transmittance is (liquor / 255) ^ depth, with depth growing
+     * as the infusion progresses. That passes through warm ambers rather than the
+     * greyish tones a plain alpha blend gives. On a light cup the result is drawn
+     * directly; on the dark glaze it is blended in so it stays visible.
+     * The digit colour flips to whichever text colour has more contrast.
+     */
+    function paintLiquor(frac, force) {
+      const st = Session.state;
+      const step = Math.round(frac * 200) / 200;
+      if (!force && step === cache.step && st.liquor === cache.liquor) return;
+      cache.step = step;
+      cache.liquor = st.liquor;
+      const colors = getCupColors();
+      const liquor = hexToRgb(st.liquor) || [181, 128, 60];
+      const depth = 0.03 + 0.97 * step;
+      const steeped = liquor.map((c) => 255 * Math.pow(Math.max(c, 1) / 255, depth));
+      let mix;
+      if (luminance(colors.surface) > 0.5) {
+        mix = steeped.map((c, i) => (c * colors.surface[i]) / 255);
+      } else {
+        const a = 0.12 + 0.8 * step;
+        mix = colors.surface.map((c, i) => c * (1 - a) + steeped[i] * a);
+      }
+      els.cupLiquor.style.fill = 'rgb(' + mix.map((c) => Math.round(c)).join(',') + ')';
+      els.cupLiquor.style.fillOpacity = '1';
+      els.cupSheen.style.opacity = String(0.06 + 0.12 * frac);
+      const L = luminance(mix);
+      els.cup.style.setProperty('--cup-text', contrast(L, colors.darkL) >= contrast(L, colors.lightL) ? TEXT_DARK : TEXT_LIGHT);
+    }
+
+    function updateTitle(clockText) {
+      const st = Session.state;
+      const t = st.timer;
+      let title = 'Gongfu Cha Timer';
+      if (Session.isFinished()) title = 'Session complete · Gongfu Cha Timer';
+      else if (t.status === 'running') title = '▶ ' + clockText + ' ' + stageName(st.stage);
+      else if (t.status === 'paused') title = '❚❚ ' + clockText + ' ' + stageName(st.stage);
+      else if (t.status === 'done') title = '✓ Done: ' + stageName(st.stage);
+      if (title !== cache.title) {
+        document.title = title;
+        cache.title = title;
+      }
+    }
+
+    function renderClock(force) {
+      const st = Session.state;
+      const t = st.timer;
+      const now = Date.now();
+      const dur = Engine.durationMs(t);
+      const elapsed = Math.min(dur, Engine.elapsedMs(t, now));
+      const remaining = dur - elapsed;
+      const frac = dur > 0 ? elapsed / dur : 0;
+      const text = formatClock(remaining);
+      if (force || text !== cache.clock) {
+        cache.clock = text;
+        els.clock.textContent = text;
+        els.a11yProgress.value = Math.round(frac * 100);
+        updateTitle(text);
+        updateAdjustButtons(now);
+      }
+      const pct = Math.round(frac * 1000) / 10;
+      if (force || pct !== cache.pct) {
+        cache.pct = pct;
+        els.cupArc.style.strokeDashoffset = String(100 - pct); // inline style: a CSS rule would override the attribute
+        els.cupArc.classList.toggle('is-empty', pct <= 0);
+      }
+      paintLiquor(frac, force);
+    }
+
+    function playRipple() {
+      if (reduceMotion && reduceMotion.matches) return;
+      els.ripple.classList.remove('is-playing');
+      void els.ripple.offsetWidth; // restart the animation
+      els.ripple.classList.add('is-playing');
+    }
+
+    /* ---------- plan preview ---------- */
+
+    function renderPlan() {
+      const st = Session.state;
+      const p = st.params;
+      const byKey = new Map(st.history.map((h) => [h.key, h]));
+      const stages = [];
+      if (st.stage === 'rinse' || byKey.has('rinse') || (!Session.isStarted() && p.rinse)) stages.push('rinse');
+      for (let n = 1; n <= p.count; n++) stages.push(n);
+
+      const resultWords = { completed: 'full time', stopped: 'poured early', skipped: 'skipped' };
+      const items = stages.map((stage) => {
+        const entry = byKey.get(stageKey(stage));
+        const isCurrent = stage === st.stage && !entry;
+        const ms = entry ? entry.targetMs : (stage === st.stage ? Engine.durationMs(st.timer) : stageMs(p, stage));
+        const cls = ['plan-step'];
+        if (isCurrent) cls.push('is-current');
+        if (entry) cls.push('is-recorded');
+        let mark = null;
+        if (entry) {
+          const markClass = { completed: 'plan-mark', stopped: 'plan-mark is-early', skipped: 'plan-mark is-skipped' }[entry.result];
+          const icon = { completed: 'check', stopped: 'half', skipped: 'dash' }[entry.result];
+          mark = iconSpan(icon, markClass);
+        }
+        const label = stageName(stage) + ', ' + spokenDuration(ms) +
+          (entry ? ', ' + resultWords[entry.result] : (isCurrent ? ', current' : ''));
+        return el('li', { class: cls.join(' '), 'aria-current': isCurrent ? 'step' : null },
+          el('span', { class: 'n', 'aria-hidden': 'true' }, stage === 'rinse' ? 'Rinse' : String(stage)),
+          el('span', { class: 'd', 'aria-hidden': 'true' }, formatDuration(ms)),
+          el('span', { class: 'visually-hidden' }, label),
+          mark);
+      });
+      els.planList.replaceChildren(...items);
+
+      let formula = 'First ' + p.firstSec + 's' + (p.incSec ? ', then +' + p.incSec + 's each time' : ', same each time');
+      formula += p.rinse ? '. Rinse ' + p.rinseSec + 's.' : '. No rinse.';
+      els.planFormula.textContent = formula;
+    }
+
+    /* ---------- session log ---------- */
+
+    function renderLog() {
+      const st = Session.state;
+      const rows = st.history.map((h) => {
+        const res = {
+          completed: ['check', 'Full time'],
+          stopped: ['half', 'Poured early'],
+          skipped: ['dash', 'Skipped'],
+        }[h.result];
+        return el('tr', null,
+          el('th', { scope: 'row' }, h.key === 'rinse' ? 'Rinse' : String(h.n)),
+          el('td', null, formatDuration(h.targetMs)),
+          el('td', null, h.result === 'skipped' ? '—' : formatDuration(h.actualMs)),
+          el('td', null, el('span', { class: 'result' }, iconSpan(res[0], 'result-icon'), res[1])));
+      });
+      els.logBody.replaceChildren(...rows);
+      const empty = st.history.length === 0;
+      els.logEmpty.hidden = !empty;
+      els.logWrap.hidden = empty;
+      const total = st.history.filter((h) => h.n > 0).reduce((sum, h) => sum + h.actualMs, 0);
+      const infusions = st.history.filter((h) => h.n > 0 && h.result !== 'skipped').length;
+      els.logTotal.textContent = formatDuration(total);
+      const hasRinse = st.history.some((h) => h.n === 0);
+      els.logTotalNote.textContent = infusions + (infusions === 1 ? ' infusion' : ' infusions') + (hasRinse ? ', rinse not counted' : '');
+    }
+
+    /* ---------- parameters panel ---------- */
+
+    function fillForm() {
+      const p = Session.state.params;
+      els.fName.value = p.name;
+      els.fTemp.value = String(p.temp);
+      els.fCount.value = String(p.count);
+      els.fFirst.value = String(p.firstSec);
+      els.fInc.value = String(p.incSec);
+      els.fRinse.checked = p.rinse;
+      els.fRinseSec.value = String(p.rinseSec);
+      els.fRinseSec.disabled = !p.rinse;
+      els.fNotes.value = p.notes;
+      showFieldErrors({});
+    }
+
+    function readForm() {
+      return {
+        name: els.fName.value, temp: els.fTemp.value, count: els.fCount.value, firstSec: els.fFirst.value,
+        incSec: els.fInc.value, rinse: els.fRinse.checked, rinseSec: els.fRinseSec.value, notes: els.fNotes.value,
+      };
+    }
+
+    function showFieldErrors(errors) {
+      formErrors = Object.keys(errors).length > 0;
+      for (const [key, input] of Object.entries(els.formInputs)) {
+        const msgEl = document.getElementById('err-' + key);
+        const msg = errors[key] || '';
+        input.setAttribute('aria-invalid', msg ? 'true' : 'false');
+        msgEl.textContent = msg;
+        msgEl.hidden = !msg;
+      }
+      renderProfileStatus();
+    }
+
+    function renderProfileStatus() {
+      const st = Session.state;
+      const profile = st.profileId ? Profiles.get(st.profileId) : null;
+      const dirty = Session.isDirty();
+      let status;
+      if (!profile) status = 'This tea is not saved. Use “Save as new tea” to keep it.';
+      else if (dirty) status = 'This session differs from the saved “' + profile.params.name + '”.';
+      else if (profile.builtin && profile.edited) status = 'Your saved version of a built-in tea.';
+      else if (profile.builtin) status = 'Built-in values.';
+      else status = 'Saved in your teas.';
+      els.profileStatus.textContent = status;
+      els.dirtyTag.hidden = !(profile && dirty);
+      els.saveProfileBtn.hidden = !(profile && dirty);
+      els.saveProfileBtn.disabled = formErrors;
+      els.saveNewBtn.disabled = formErrors;
+      els.revertBtn.hidden = !(profile && dirty);
+      els.restoreBtn.hidden = !(profile && profile.builtin && profile.edited);
+      els.deleteBtn.hidden = !(profile && !profile.builtin);
+
+      if (profile && profile.meta) {
+        els.teaAbout.replaceChildren(
+          profile.meta.description,
+          el('span', { class: 'range' }, 'Suggested water ' + profile.meta.tempRange + '. ' + profile.meta.rinseAdvice));
+        els.teaAbout.hidden = false;
+      } else {
+        els.teaAbout.hidden = true;
+      }
+      els.fCount.min = String(Session.minCount());
+    }
+
+    function feedback(text) {
+      els.profileFeedback.textContent = text;
+      clearTimeout(feedbackTimer);
+      feedbackTimer = setTimeout(() => { els.profileFeedback.textContent = ''; }, 5000);
+    }
+
+    function openParamsPanel(focusName) {
+      els.paramsPanel.open = true;
+      els.paramsPanel.scrollIntoView({ block: 'start', behavior: reduceMotion && reduceMotion.matches ? 'auto' : 'smooth' });
+      if (focusName) {
+        els.fName.focus({ preventScroll: true });
+        els.fName.select();
+      }
+    }
+
+    /* ---------- preferences ---------- */
+
+    function renderPrefs() {
+      if (!els.pSound) return;
+      const p = Prefs.get();
+      els.pSound.checked = p.sound && Alerts.audioSupported;
+      els.pSound.disabled = !Alerts.audioSupported;
+      els.testSoundBtn.disabled = !Alerts.audioSupported;
+      els.soundNote.textContent = Alerts.audioSupported ? '' : 'Not supported in this browser.';
+
+      els.pVibrate.checked = p.vibrate && Alerts.vibrationSupported;
+      els.pVibrate.disabled = !Alerts.vibrationSupported;
+      els.vibrateNote.textContent = Alerts.vibrationSupported ? '' : 'Not supported on this device or browser.';
+
+      els.pWake.checked = p.wakeLock && WakeLock.supported;
+      els.pWake.disabled = !WakeLock.supported;
+      if (!WakeLock.supported) els.wakeNote.textContent = 'Not supported in this browser.';
+      else if (p.wakeLock && WakeLock.error) els.wakeNote.textContent = WakeLock.error;
+      else if (p.wakeLock && WakeLock.active) els.wakeNote.textContent = 'On while this page is visible.';
+      else if (p.wakeLock) els.wakeNote.textContent = 'Turns on when this page is visible.';
+      else els.wakeNote.textContent = '';
+
+      els.themeRadios.forEach((r) => { r.checked = r.value === p.theme; });
+      els.restoreAllBtn.disabled = !Profiles.hasOverrides();
+      els.storageNote.hidden = Store.available;
+    }
+
+    function applyTheme() {
+      const theme = Prefs.get().theme;
+      if (theme === 'auto') document.documentElement.removeAttribute('data-theme');
+      else document.documentElement.setAttribute('data-theme', theme);
+      cupColors = null;
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      if (bg && els.themeColor) els.themeColor.setAttribute('content', bg);
+      renderClock(true);
+    }
+
+    /* ---------- notices and announcements ---------- */
+
+    function setNotice(text, tone) {
+      els.notice.textContent = text;
+      els.notice.dataset.tone = tone || 'info';
+      els.notice.hidden = !text;
+    }
+    function clearNotice() { setNotice('', 'info'); }
+
+    function announce(text) {
+      // Clearing first makes repeated identical messages announce again.
+      els.live.textContent = '';
+      setTimeout(() => { els.live.textContent = text; }, 30);
+    }
+
+    /* ---------- full render ---------- */
+
+    function render() {
+      renderHeader();
+      renderStage();
+      renderTargets();
+      renderControls();
+      renderPlan();
+      renderLog();
+      renderProfileStatus();
+      renderPrefs();
+      renderClock(true);
+    }
+
+    return {
+      els, cacheElements, render, renderClock, renderPrefs, fillForm, readForm, showFieldErrors, renderProfileStatus,
+      feedback, openParamsPanel, applyTheme, setNotice, clearNotice, announce, playRipple, confirm,
+      openTeaDialog, closeTeaDialog, renderTeaLists, get formHasErrors() { return formErrors; },
+      resetColorCache() { cupColors = null; },
+    };
+  })();
+
+  /* ===================================================================
+   * 13. App controller: user actions → session transitions → render
+   * =================================================================== */
+
+  const App = (() => {
+    // Double-tap protection. A repeat press of the same control is ignored briefly,
+    // and so is any press that lands just as a timer finishes ('complete').
+    const guard = { source: '', until: 0 };
+    const isGuarded = (source) =>
+      performance.now() < guard.until && (guard.source === source || guard.source === 'complete');
+    const armGuard = (source, ms) => {
+      guard.source = source;
+      guard.until = performance.now() + (ms || PRESS_GUARD_MS);
+    };
+
+    /** Persist, resync timers and redraw after any state change. */
+    function commit(options) {
+      Session.save();
+      Ticker.sync();
+      if (!options || options.clearNotice !== false) UI.clearNotice();
+      UI.render();
+    }
+
+    function readyMessage() {
+      const st = Session.state;
+      return stageName(st.stage) + ' ready, ' + spokenDuration(Engine.durationMs(st.timer)) + '. Press Start when the water is in.';
+    }
+
+    function completionMessage(info, alertResult) {
+      const parts = [];
+      if (info.lateMs > LATE_ALERT_MS) {
+        parts.push('Finished ' + agoText(info.lateMs) + ' ago, while the page was ' + (info.source === 'restore' ? 'closed.' : 'in the background.'));
+      }
+      if (info.stage === 'rinse') parts.push('Rinse done. Pour it off, then go to infusion 1.');
+      else if (info.finished) parts.push('Infusion ' + info.stage + ' done. That was the last one in the plan.');
+      else parts.push('Infusion ' + info.stage + ' done. Pour the tea.');
+      if (alertResult && alertResult.sound === 'blocked') {
+        parts.push('The browser blocked the sound. Tap anywhere on the page to allow it next time.');
+      }
+      return parts.join(' ');
+    }
+
+    /** Called once per completed stage (Session.complete guarantees that). */
+    function onComplete(info) {
+      armGuard('complete', COMPLETE_GUARD_MS);
+      Session.save();
+      Ticker.sync();
+      const late = info.lateMs > LATE_ALERT_MS;
+      const alertResult = late ? null : Alerts.fire(Prefs.get());
+      UI.render();
+      UI.playRipple();
+      const message = completionMessage(info, alertResult);
+      UI.setNotice(message, 'done');
+      UI.announce(message);
+    }
+
+    function primary() {
+      if (isGuarded('primary')) return;
+      Alerts.unlock();
+      if (Ticker.reconcile('action')) return; // it just finished: this press was aimed at the old state
+      const now = Date.now();
+      const st = Session.state;
+      let message = null;
+      if (Session.isFinished()) {
+        if (Session.extend(now)) message = 'One more infusion added. ' + readyMessage();
+      } else {
+        switch (st.timer.status) {
+          case 'idle':
+            if (Session.start(now)) message = stageName(st.stage) + ' started, ' + spokenDuration(Engine.durationMs(st.timer)) + '.';
+            break;
+          case 'running':
+            if (Session.pause(now)) message = 'Paused with ' + spokenDuration(Engine.remainingMs(st.timer, now)) + ' left.';
+            break;
+          case 'paused':
+            if (Session.resume(now)) message = 'Resumed.';
+            break;
+          case 'done':
+            if (Session.next(now)) message = readyMessage();
+            break;
+          default:
+            break;
+        }
+      }
+      if (message) {
+        armGuard('primary');
+        commit();
+        UI.announce(message);
+      }
+    }
+
+    function next() {
+      if (isGuarded('next')) return;
+      Alerts.unlock();
+      if (Ticker.reconcile('action')) return;
+      const result = Session.next(Date.now());
+      if (!result) return;
+      armGuard('next');
+      commit();
+      if (result.finished) UI.announce('Session complete. ' + (result.logged === 'stopped' ? 'The last infusion was logged as poured early.' : ''));
+      else UI.announce((result.logged === 'stopped' ? 'Logged as poured early. ' : result.logged === 'skipped' ? 'Skipped. ' : '') + readyMessage());
+    }
+
+    function reset() {
+      if (Ticker.reconcile('action')) return;
+      if (!Session.reset()) return;
+      commit();
+      UI.announce(stageName(Session.state.stage) + ' reset to ' + spokenDuration(Engine.durationMs(Session.state.timer)) + '.');
+    }
+
+    function adjust(delta) {
+      if (Ticker.reconcile('action')) return;
+      if (!Session.adjust(delta, Date.now())) return;
+      commit({ clearNotice: false });
+      UI.announce('Target now ' + spokenDuration(Engine.durationMs(Session.state.timer)) + '.');
+    }
+
+    function discardWarning() {
+      const st = Session.state;
+      const parts = [];
+      if (Session.isStarted()) {
+        const n = st.history.length;
+        parts.push(n
+          ? 'This ends the current session and clears its log (' + n + (n === 1 ? ' entry).' : ' entries).')
+          : 'This ends the current session.');
+      }
+      if (Session.isDirty()) parts.push('Unsaved changes to the brewing parameters will be lost.');
+      return parts.join(' ');
+    }
+
+    async function selectTea(id) {
+      const profile = Profiles.get(id);
+      if (!profile) return;
+      if (id === Session.state.profileId) { UI.closeTeaDialog(); return; }
+      if (Session.isStarted() || Session.isDirty()) {
+        const ok = await UI.confirm({
+          title: 'Switch to ' + profile.params.name + '?',
+          message: discardWarning(),
+          confirmLabel: 'Switch tea',
+        });
+        if (!ok) return;
+      }
+      Session.create(profile.id, profile.params, profile.liquor);
+      UI.closeTeaDialog();
+      UI.fillForm();
+      commit();
+      UI.announce(profile.params.name + ' selected. ' + readyMessage());
+    }
+
+    async function createTea() {
+      if (Session.isStarted() || Session.isDirty()) {
+        const ok = await UI.confirm({ title: 'Create a new tea?', message: discardWarning(), confirmLabel: 'Create tea' });
+        if (!ok) return;
+      }
+      const params = { ...CUSTOM_DEFAULTS, name: Profiles.uniqueName(CUSTOM_DEFAULTS.name) };
+      const { id, saved } = Profiles.create(params, DEFAULT_LIQUOR);
+      Session.create(id, params, DEFAULT_LIQUOR);
+      UI.closeTeaDialog();
+      UI.fillForm();
+      commit();
+      UI.openParamsPanel(true);
+      UI.feedback(saved ? 'New tea created. Set its values, then save your changes.' : 'Created, but storage is unavailable so it will not be kept.');
+    }
+
+    async function newSession() {
+      if (Session.isStarted()) {
+        const ok = await UI.confirm({
+          title: 'Start a new session?',
+          message: 'This clears the log and returns to the first stage. Your brewing parameters stay as they are.',
+          confirmLabel: 'Start new session',
+        });
+        if (!ok) return;
+      }
+      const st = Session.state;
+      Session.create(st.profileId, st.params, st.liquor);
+      commit();
+      UI.announce('New session. ' + readyMessage());
+    }
+
+    /** Validates the form and applies valid values to the session (not the saved profile). */
+    function onParamsEdit() {
+      const st = Session.state;
+      UI.els.fRinseSec.disabled = !UI.els.fRinse.checked;
+      const result = validateParams(UI.readForm(), { minCount: Session.minCount(), fallback: st.params });
+      UI.showFieldErrors(result.errors);
+      if (!result.ok || sameParams(result.params, st.params)) return;
+      if (Ticker.reconcile('action')) return;
+      Session.applyParams(result.params);
+      commit({ clearNotice: false });
+    }
+
+    function saveProfile() {
+      const st = Session.state;
+      const profile = st.profileId ? Profiles.get(st.profileId) : null;
+      if (!profile || UI.formHasErrors) return;
+      const ok = Profiles.save(profile.id, st.params);
+      commit({ clearNotice: false });
+      UI.feedback(ok ? 'Saved “' + st.params.name + '”.' : 'Could not save: browser storage is full or turned off.');
+    }
+
+    function saveAsNew() {
+      const st = Session.state;
+      if (UI.formHasErrors) return;
+      const name = Profiles.uniqueName(st.params.name);
+      const { id, saved } = Profiles.create({ ...st.params, name }, st.liquor);
+      Session.adopt(id, name, st.liquor);
+      UI.els.fName.value = name;
+      commit({ clearNotice: false });
+      UI.feedback(saved ? 'Saved as “' + name + '”.' : 'Could not save: browser storage is full or turned off.');
+    }
+
+    /** Puts the session back on the saved values (never below the infusion in progress). */
+    function applySavedToSession(params) {
+      const p = { ...params, count: Math.max(params.count, Session.minCount()) };
+      Session.applyParams(p);
+      UI.fillForm();
+      commit({ clearNotice: false });
+    }
+
+    function revert() {
+      const profile = Profiles.get(Session.state.profileId);
+      if (!profile) return;
+      if (Ticker.reconcile('action')) return;
+      applySavedToSession(profile.params);
+      UI.feedback('Changes discarded.');
+    }
+
+    async function restoreBuiltin() {
+      const profile = Profiles.get(Session.state.profileId);
+      if (!profile || !profile.builtin) return;
+      const ok = await UI.confirm({
+        title: 'Restore original values?',
+        message: '“' + profile.params.name + '” goes back to the built-in values for ' + profile.defaults.name + '. Your saved changes to it will be lost.',
+        confirmLabel: 'Restore',
+      });
+      if (!ok) return;
+      Profiles.restore(profile.id);
+      Ticker.reconcile('action');
+      applySavedToSession(profile.defaults);
+      UI.feedback('Original values restored.');
+    }
+
+    async function deleteTea() {
+      const profile = Profiles.get(Session.state.profileId);
+      if (!profile || profile.builtin) return;
+      const ok = await UI.confirm({
+        title: 'Delete “' + profile.params.name + '”?',
+        message: 'The saved tea is removed. Your current session keeps going, and you can save it again as a new tea.',
+        confirmLabel: 'Delete',
+        danger: true,
+      });
+      if (!ok) return;
+      Profiles.remove(profile.id);
+      commit({ clearNotice: false });
+      UI.feedback('Tea deleted.');
+    }
+
+    async function restoreAll() {
+      const ok = await UI.confirm({
+        title: 'Restore all built-in teas?',
+        message: 'Every built-in tea goes back to its original values. Your own teas are not affected.',
+        confirmLabel: 'Restore all',
+      });
+      if (!ok) return;
+      Profiles.restoreAll();
+      const profile = Profiles.get(Session.state.profileId);
+      Ticker.reconcile('action');
+      if (profile && profile.builtin) applySavedToSession(profile.defaults);
+      else commit({ clearNotice: false });
+      UI.feedback('Built-in teas restored.');
+    }
+
+    function setPref(key, value) {
+      Prefs.set(key, value);
+      if (key === 'sound' && value) Alerts.unlock();
+      if (key === 'wakeLock') {
+        if (value) WakeLock.acquire(); else WakeLock.release();
+      }
+      if (key === 'theme') UI.applyTheme();
+      UI.renderPrefs();
+    }
+
+    function testSound() {
+      Alerts.unlock();
+      const r = Alerts.chime();
+      if (r === 'unsupported') UI.announce('Sound is not supported in this browser.');
+    }
+
+    /** Re-check timing whenever the page becomes visible again. */
+    function onVisibility() {
+      if (document.visibilityState === 'visible') {
+        Ticker.reconcile('background');
+        Ticker.sync();
+        UI.renderClock(true);
+        WakeLock.acquire();
+      } else {
+        Session.save();
+        Ticker.sync(); // drops the animation frame loop; interval and end-time timeout keep running
+      }
+    }
+
+    return {
+      onComplete, primary, next, reset, adjust, selectTea, createTea, newSession, onParamsEdit, saveProfile,
+      saveAsNew, revert, restoreBuiltin, deleteTea, restoreAll, setPref, testSound, onVisibility,
+    };
+  })();
+
+  /* ===================================================================
+   * 14. Event wiring (each listener is attached exactly once)
+   * =================================================================== */
+
+  function bindEvents() {
+    const e = UI.els;
+
+    e.primaryBtn.addEventListener('click', App.primary);
+    e.nextBtn.addEventListener('click', App.next);
+    e.resetBtn.addEventListener('click', App.reset);
+    e.minusBtn.addEventListener('click', () => App.adjust(-ADJUST_STEP_MS));
+    e.plusBtn.addEventListener('click', () => App.adjust(ADJUST_STEP_MS));
+    e.newSessionBtn.addEventListener('click', App.newSession);
+
+    e.teaButton.addEventListener('click', UI.openTeaDialog);
+    e.teaDialogClose.addEventListener('click', UI.closeTeaDialog);
+    e.teaDialog.addEventListener('click', (ev) => { if (ev.target === e.teaDialog) UI.closeTeaDialog(); });
+    e.teaLists.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('.tea-option');
+      if (btn) App.selectTea(btn.dataset.id);
+    });
+    e.newTeaBtn.addEventListener('click', App.createTea);
+
+    e.paramsForm.addEventListener('submit', (ev) => { ev.preventDefault(); App.onParamsEdit(); });
+    e.paramsForm.addEventListener('change', App.onParamsEdit);
+    e.fName.addEventListener('input', App.onParamsEdit);
+    e.fNotes.addEventListener('input', App.onParamsEdit);
+
+    e.saveProfileBtn.addEventListener('click', App.saveProfile);
+    e.saveNewBtn.addEventListener('click', App.saveAsNew);
+    e.revertBtn.addEventListener('click', App.revert);
+    e.restoreBtn.addEventListener('click', App.restoreBuiltin);
+    e.deleteBtn.addEventListener('click', App.deleteTea);
+
+    e.pSound.addEventListener('change', () => App.setPref('sound', e.pSound.checked));
+    e.pVibrate.addEventListener('change', () => App.setPref('vibrate', e.pVibrate.checked));
+    e.pWake.addEventListener('change', () => App.setPref('wakeLock', e.pWake.checked));
+    e.themeRadios.forEach((r) => r.addEventListener('change', () => { if (r.checked) App.setPref('theme', r.value); }));
+    e.testSoundBtn.addEventListener('click', App.testSound);
+    e.restoreAllBtn.addEventListener('click', App.restoreAll);
+
+    // Audio may only start after a user gesture.
+    const unlockEvents = ['pointerdown', 'keydown', 'touchend'];
+    const onGesture = () => {
+      Alerts.unlock();
+      if (Alerts.isReady()) unlockEvents.forEach((type) => document.removeEventListener(type, onGesture, true));
+    };
+    unlockEvents.forEach((type) => document.addEventListener(type, onGesture, true));
+
+    // Page Visibility API: reconcile the countdown on return.
+    document.addEventListener('visibilitychange', App.onVisibility);
+    window.addEventListener('pageshow', App.onVisibility);
+    window.addEventListener('focus', App.onVisibility);
+    window.addEventListener('pagehide', () => Session.save());
+
+    // Follow system theme changes in auto mode.
+    if (window.matchMedia) {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const onScheme = () => { if (Prefs.get().theme === 'auto') UI.applyTheme(); };
+      if (typeof mq.addEventListener === 'function') mq.addEventListener('change', onScheme);
+      else if (typeof mq.addListener === 'function') mq.addListener(onScheme);
+    }
+
+    // Keyboard shortcuts for desktop.
+    document.addEventListener('keydown', (ev) => {
+      if (ev.defaultPrevented || ev.altKey || ev.ctrlKey || ev.metaKey || ev.repeat) return;
+      if (document.querySelector('dialog[open]')) return;
+      const target = ev.target instanceof Element ? ev.target : null;
+      if (target && target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      const onControl = target && target.closest('button, summary, a');
+      switch (ev.key) {
+        case ' ':
+          if (onControl) return; // let the focused control handle Space
+          ev.preventDefault();
+          App.primary();
+          break;
+        case 'n': case 'N': App.next(); break;
+        case 'r': case 'R': App.reset(); break;
+        case '+': case '=': App.adjust(ADJUST_STEP_MS); break;
+        case '-': case '_': App.adjust(-ADJUST_STEP_MS); break;
+        default: break;
+      }
+    });
+  }
+
+  /* ===================================================================
+   * 15. Start-up
+   * =================================================================== */
+
+  function init() {
+    Prefs.load();
+    Profiles.load();
+    if (!Session.restore(Store.read(KEYS.session))) {
+      const first = Profiles.get(BUILTIN_TEAS[0].id);
+      Session.create(first.id, first.params, first.liquor);
+    }
+    UI.cacheElements();
+    bindEvents();
+    UI.applyTheme();
+    UI.fillForm();
+    UI.render();
+    if (!Store.available) {
+      UI.setNotice('This browser is blocking local storage, so your teas and session will not be kept after the page closes.', 'warn');
+    }
+    Ticker.reconcile('restore'); // a timer that ended while the page was closed is finished and logged once
+    Ticker.sync();
+    Session.save();
+    WakeLock.acquire();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
